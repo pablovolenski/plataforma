@@ -1,0 +1,9 @@
+{
+  "name": "plataforma",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Starter repository for a curated publishing wall.",
+  "scripts": {
+    "start": "powershell -Command Start-Process src/index.html"
+  }
+}

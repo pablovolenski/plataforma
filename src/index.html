@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plataforma</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero__copy">
+          <p class="eyebrow">Curated publishing network</p>
+          <h1>Plataforma</h1>
+          <p class="hero__text">
+            A platform for invited contributors to publish opinion pieces, news
+            updates, and events to a wall anyone can read.
+          </p>
+        </div>
+        <div class="hero__stats">
+          <div class="stat-card">
+            <span class="stat-card__label">Account policy</span>
+            <strong>Predefined only</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-card__label">Post types</span>
+            <strong>Opinion, News, Event</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel composer">
+          <div class="panel__heading">
+            <p class="eyebrow">Publishing desk</p>
+            <h2>Write an article</h2>
+          </div>
+
+          <div class="access-note">
+            <strong>Access model:</strong>
+            New accounts are not created publicly. Authors are selected from a
+            predefined roster.
+          </div>
+
+          <form id="article-form" class="article-form">
+            <label>
+              Author
+              <select id="author" name="author" required></select>
+            </label>
+
+            <label>
+              Category
+              <select id="kind" name="kind" required>
+                <option value="opinion">Opinion</option>
+                <option value="news">News</option>
+                <option value="event">Event</option>
+              </select>
+            </label>
+
+            <label>
+              Title
+              <input
+                id="title"
+                name="title"
+                type="text"
+                maxlength="90"
+                placeholder="Enter a headline"
+                required
+              />
+            </label>
+
+            <label>
+              Summary
+              <textarea
+                id="summary"
+                name="summary"
+                rows="3"
+                maxlength="180"
+                placeholder="Write a one-paragraph summary"
+                required
+              ></textarea>
+            </label>
+
+            <label>
+              Body
+              <textarea
+                id="body"
+                name="body"
+                rows="8"
+                placeholder="Write the full article"
+                required
+              ></textarea>
+            </label>
+
+            <button type="submit">Publish to wall</button>
+          </form>
+        </section>
+
+        <section class="panel wall">
+          <div class="wall__header">
+            <div class="panel__heading">
+              <p class="eyebrow">Public feed</p>
+              <h2>Visible wall</h2>
+            </div>
+
+            <div class="filters" id="filters">
+              <button class="filter-chip is-active" data-filter="all">
+                All
+              </button>
+              <button class="filter-chip" data-filter="opinion">Opinion</button>
+              <button class="filter-chip" data-filter="news">News</button>
+              <button class="filter-chip" data-filter="event">Event</button>
+            </div>
+          </div>
+
+          <div id="articles" class="articles" aria-live="polite"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
