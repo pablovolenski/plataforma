@@ -54,6 +54,8 @@ $cat_name   = $cat ? $cat->name : '';
 			<span class="like-count"><?php echo esc_html( $like_count ); ?></span>
 		</button>
 
+		<?php get_template_part( 'template-parts/share-bar', null, [ 'compact' => true ] ); ?>
+
 		<a class="article-card__read-more" href="<?php the_permalink(); ?>">
 			Leer más →
 		</a>

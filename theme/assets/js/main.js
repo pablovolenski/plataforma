@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharCounters();
   initComposerModal();
   initComposeForm();
+  initShare();
 });
 
 // ---------------------------------------------------------------------------
@@ -164,4 +165,113 @@ function showNotice(el, message, type = 'success') {
   el.hidden = false;
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   setTimeout(() => { el.hidden = true; }, 8000);
+}
+
+// ---------------------------------------------------------------------------
+// Share: Web Share API on mobile, dropdown on desktop, clipboard for copy
+// ---------------------------------------------------------------------------
+
+function initShare() {
+  // Compact share button: native Web Share API on mobile, dropdown on desktop
+  document.querySelectorAll('.share-btn--toggle').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      const dropdown = btn.closest('.share-dropdown');
+      if (!dropdown) return;
+
+      const url   = dropdown.dataset.shareUrl;
+      const title = dropdown.dataset.shareTitle;
+
+      // Mobile: try native share sheet
+      if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        try {
+          await navigator.share({ title, url });
+          return;
+        } catch {
+          // User cancelled or unsupported — fall through to dropdown
+        }
+      }
+
+      // Desktop fallback: toggle dropdown menu
+      const menu = dropdown.querySelector('.share-dropdown__menu');
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+      if (menu) menu.hidden = expanded;
+    });
+  });
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.share-dropdown').forEach((dropdown) => {
+      if (!dropdown.contains(e.target)) {
+        const btn  = dropdown.querySelector('.share-btn--toggle');
+        const menu = dropdown.querySelector('.share-dropdown__menu');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        if (menu) menu.hidden = true;
+      }
+    });
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.share-dropdown').forEach((dropdown) => {
+      const btn  = dropdown.querySelector('.share-btn--toggle');
+      const menu = dropdown.querySelector('.share-dropdown__menu');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+      if (menu) menu.hidden = true;
+    });
+  });
+
+  // Open share links in popup window for desktop platforms
+  document.querySelectorAll('.share-dropdown__item[href], .share-pill[href]').forEach((link) => {
+    if (link.href.startsWith('mailto:')) return; // let email open the mail client
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const w = 600, h = 540;
+      const left = (window.screen.width - w) / 2;
+      const top  = (window.screen.height - h) / 2;
+      window.open(
+        link.href,
+        'plataforma_share',
+        `width=${w},height=${h},left=${left},top=${top},noopener,noreferrer`
+      );
+    });
+  });
+
+  // Copy link buttons
+  document.querySelectorAll('[data-share-copy]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const container = btn.closest('[data-share-url]');
+      const url = container?.dataset.shareUrl || window.location.href;
+
+      try {
+        await navigator.clipboard.writeText(url);
+        const original = btn.querySelector('span')?.textContent;
+        btn.classList.add('is-copied');
+        const label = btn.querySelector('span');
+        if (label) label.textContent = '¡Copiado!';
+        setTimeout(() => {
+          btn.classList.remove('is-copied');
+          if (label && original) label.textContent = original;
+        }, 1800);
+      } catch {
+        // Fallback for browsers without clipboard API
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch {}
+        document.body.removeChild(ta);
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 1800);
+      }
+    });
+  });
 }

@@ -63,6 +63,8 @@ $cat_name   = $cat ? $cat->name : '';
 			</button>
 		</div>
 
+		<?php get_template_part( 'template-parts/share-bar', null, [ 'compact' => false ] ); ?>
+
 		<a class="back-link" href="<?php echo esc_url( home_url( '/' ) ); ?>">
 			← Volver al muro
 		</a>

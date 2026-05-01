@@ -37,14 +37,22 @@ function plataforma_enqueue_assets(): void {
 	$version = wp_get_theme()->get( 'Version' );
 	$uri     = get_template_directory_uri();
 
+	// Google Fonts: Montserrat (Soleil-style geometric sans-serif, free)
+	wp_enqueue_style(
+		'plataforma-fonts',
+		'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap',
+		[],
+		null
+	);
+
 	wp_enqueue_style(
 		'plataforma-main',
 		$uri . '/assets/css/main.css',
-		[],
+		[ 'plataforma-fonts' ],
 		$version
 	);
 
-	// main.js handles filters, compose form AJAX submit, char counters
+	// main.js handles filters, compose form AJAX submit, char counters, share
 	wp_enqueue_script(
 		'plataforma-main',
 		$uri . '/assets/js/main.js',
@@ -61,6 +69,14 @@ function plataforma_enqueue_assets(): void {
 		$version,
 		true
 	);
+}
+
+// Preconnect to Google Fonts servers for faster loading
+add_action( 'wp_head', 'plataforma_font_preconnect', 1 );
+
+function plataforma_font_preconnect(): void {
+	echo '<link rel="preconnect" href="https://fonts.googleapis.com">' . "\n";
+	echo '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' . "\n";
 }
 
 // ---------------------------------------------------------------------------
