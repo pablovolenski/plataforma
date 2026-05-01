@@ -82,12 +82,12 @@ function plataforma_login_styles(): void {
 	);
 }
 
-add_filter( 'login_headerurl', fn() => home_url( '/' ) );
-add_filter( 'login_headertext', fn() => get_bloginfo( 'name' ) );
+add_filter( 'login_headerurl', function() { return home_url( '/' ); } );
+add_filter( 'login_headertext', function() { return get_bloginfo( 'name' ); } );
 
 // ---------------------------------------------------------------------------
 // Custom excerpt length
 // ---------------------------------------------------------------------------
 
-add_filter( 'excerpt_length', fn() => 35 );
-add_filter( 'excerpt_more',   fn() => '…' );
+add_filter( 'excerpt_length', function() { return 35; } );
+add_filter( 'excerpt_more',   function() { return '…'; } );
