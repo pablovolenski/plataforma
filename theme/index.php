@@ -1,6 +1,7 @@
 <?php
 /**
- * Main feed template: public wall + inline compose for autores.
+ * Main feed: full-width wall with compose bar at top (publishers only).
+ * Filters are generated dynamically from WordPress categories.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -8,39 +9,29 @@ defined( 'ABSPATH' ) || exit;
 get_header();
 ?>
 
-<main class="layout">
+<main class="feed">
 
 	<?php if ( current_user_can( 'publish_posts' ) ) : ?>
 		<?php get_template_part( 'template-parts/compose-form' ); ?>
-	<?php else : ?>
-		<section class="panel composer">
-			<div class="panel__heading">
-				<p class="eyebrow">Red de publicación</p>
-				<h2>Plataforma</h2>
-			</div>
-			<div class="access-note">
-				<strong>Acceso:</strong>
-				Las cuentas son asignadas por los administradores del Verein.
-				<?php if ( ! is_user_logged_in() ) : ?>
-					<br><a href="<?php echo esc_url( wp_login_url() ); ?>">Ingresar</a>
-				<?php endif; ?>
-			</div>
-		</section>
 	<?php endif; ?>
 
-	<section class="panel wall">
-		<div class="wall__header">
-			<div class="panel__heading">
-				<p class="eyebrow">Muro público</p>
-				<h2>Publicaciones</h2>
-			</div>
-
-			<div class="filters" id="filters" role="group" aria-label="Filtrar por categoría">
-				<button class="filter-chip is-active" data-filter="all">Todo</button>
-				<button class="filter-chip" data-filter="opinion">Opinión</button>
-				<button class="filter-chip" data-filter="noticias">Noticias</button>
-				<button class="filter-chip" data-filter="eventos">Eventos</button>
-			</div>
+	<section class="wall" aria-label="Muro público">
+		<div class="wall__filters" id="filters" role="group" aria-label="Filtrar por categoría">
+			<button class="filter-chip is-active" data-filter="all">Todo</button>
+			<?php
+			$filter_cats = get_categories( [
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
+			] );
+			foreach ( $filter_cats as $fcat ) :
+				?>
+				<button class="filter-chip" data-filter="<?php echo esc_attr( $fcat->slug ); ?>">
+					<?php echo esc_html( $fcat->name ); ?>
+				</button>
+				<?php
+			endforeach;
+			?>
 		</div>
 
 		<div id="articles" class="articles" aria-live="polite">
@@ -59,9 +50,12 @@ get_header();
 					get_template_part( 'template-parts/post-card' );
 				endwhile;
 				wp_reset_postdata();
-			else : ?>
+			else :
+				?>
 				<div class="empty-state">Aún no hay publicaciones.</div>
-			<?php endif; ?>
+				<?php
+			endif;
+			?>
 		</div>
 	</section>
 

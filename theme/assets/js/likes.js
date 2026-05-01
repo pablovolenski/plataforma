@@ -1,6 +1,8 @@
 /* Plataforma — likes.js
-   AJAX like/unlike with optimistic UI.
-   PlataformaData is injected by the plugin via wp_localize_script. */
+   Open to everyone. Logged-in: bypass anti-bot. Visitors: time-on-page check
+   plus honeypot field sent in the request body. */
+
+const PLATAFORMA_PAGE_LOAD = Date.now();
 
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.like-btn').forEach((btn) => {
@@ -11,22 +13,14 @@ document.addEventListener('DOMContentLoaded', () => {
 async function handleLikeClick(e) {
   const btn = e.currentTarget;
 
-  // If data is not available (plugin inactive), do nothing silently.
   if (typeof PlataformaData === 'undefined') return;
 
-  // Redirect to login if not authenticated.
-  if (!PlataformaData.isLoggedIn) {
-    window.location.href = PlataformaData.loginUrl;
-    return;
-  }
-
-  // Prevent double-clicks while request is in flight.
   if (btn.dataset.pending === 'true') return;
   btn.dataset.pending = 'true';
 
-  // Optimistic update.
-  const wasLiked   = btn.classList.contains('is-liked');
-  const countEl    = btn.querySelector('.like-count');
+  // Optimistic UI
+  const wasLiked     = btn.classList.contains('is-liked');
+  const countEl      = btn.querySelector('.like-count');
   const currentCount = parseInt(countEl.textContent, 10) || 0;
 
   btn.classList.toggle('is-liked', !wasLiked);
@@ -37,6 +31,8 @@ async function handleLikeClick(e) {
     action:   'plataforma_toggle_like',
     post_id:  btn.dataset.postId,
     _wpnonce: PlataformaData.likeNonce,
+    t:        String(Date.now() - PLATAFORMA_PAGE_LOAD), // anti-bot: time on page
+    hp:       '',                                        // anti-bot: honeypot
   });
 
   try {
@@ -44,27 +40,40 @@ async function handleLikeClick(e) {
     const data = await res.json();
 
     if (!data.success) {
-      // Server rejected — revert optimistic update.
+      // Revert
       btn.classList.toggle('is-liked', wasLiked);
       btn.setAttribute('aria-pressed', String(wasLiked));
       countEl.textContent = data.data?.count ?? currentCount;
 
-      // If unauthenticated, redirect to login.
-      if (data.data?.loginUrl) {
-        window.location.href = data.data.loginUrl;
-      }
+      const msg = data.data?.message;
+      if (msg) flashLikeError(btn, msg);
     } else {
-      // Confirm server state (handles any race conditions).
       btn.classList.toggle('is-liked', data.data.liked);
       btn.setAttribute('aria-pressed', String(data.data.liked));
       countEl.textContent = data.data.count;
     }
   } catch {
-    // Network error — revert.
     btn.classList.toggle('is-liked', wasLiked);
     btn.setAttribute('aria-pressed', String(wasLiked));
     countEl.textContent = currentCount;
   } finally {
     btn.dataset.pending = 'false';
   }
+}
+
+// Brief inline tooltip for like errors (rate limit, bot, etc.)
+function flashLikeError(btn, message) {
+  let tip = btn.querySelector('.like-error');
+  if (!tip) {
+    tip = document.createElement('span');
+    tip.className = 'like-error';
+    tip.style.cssText =
+      'position:absolute;background:#9a2a0f;color:#fff;font-size:0.78rem;' +
+      'padding:5px 9px;border-radius:8px;white-space:nowrap;z-index:10;' +
+      'transform:translate(-50%, -120%);left:50%;top:0;';
+    btn.style.position = 'relative';
+    btn.appendChild(tip);
+  }
+  tip.textContent = message;
+  setTimeout(() => { tip.remove(); }, 3000);
 }

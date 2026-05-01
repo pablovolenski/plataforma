@@ -12,28 +12,32 @@ if ( have_posts() ) {
 }
 
 $post_id    = get_the_ID();
-$user_id    = get_current_user_id();
-$liked      = plataforma_user_has_liked( $post_id, $user_id );
+$liked      = plataforma_user_has_liked( $post_id );
 $like_count = plataforma_like_count( $post_id );
 $categories = get_the_category();
 $cat        = ! empty( $categories ) ? $categories[0] : null;
 $cat_name   = $cat ? $cat->name : '';
 ?>
 
-<main class="layout layout--single">
-	<article class="panel article-single">
+<main class="feed feed--single">
+	<article class="article-single">
 
-		<div class="article-card__meta">
-			<?php if ( $cat_name ) : ?>
-				<span class="article-card__kind"><?php echo esc_html( $cat_name ); ?></span>
-			<?php endif; ?>
-			<a href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>">
-				<?php the_author(); ?>
-			</a>
-			<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>">
-				<?php echo esc_html( get_the_date( 'j. F Y, H:i' ) ); ?>
-			</time>
-		</div>
+		<header class="article-single__head">
+			<?php echo get_avatar( get_the_author_meta( 'ID' ), 48, '', '', [ 'class' => 'article-card__avatar' ] ); ?>
+			<div>
+				<a class="article-card__author" href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>">
+					<?php the_author(); ?>
+				</a>
+				<div class="article-card__meta">
+					<?php if ( $cat_name ) : ?>
+						<span class="article-card__kind"><?php echo esc_html( $cat_name ); ?></span>
+					<?php endif; ?>
+					<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>">
+						<?php echo esc_html( get_the_date( 'j M Y, H:i' ) ); ?>
+					</time>
+				</div>
+			</div>
+		</header>
 
 		<h1 class="article-single__title"><?php the_title(); ?></h1>
 
@@ -51,10 +55,11 @@ $cat_name   = $cat ? $cat->name : '';
 				data-post-id="<?php echo esc_attr( $post_id ); ?>"
 				aria-label="<?php echo $liked ? 'Quitar me gusta' : 'Me gusta'; ?>"
 				aria-pressed="<?php echo $liked ? 'true' : 'false'; ?>"
+				type="button"
 			>
 				<span class="like-heart" aria-hidden="true">♥</span>
 				<span class="like-count"><?php echo esc_html( $like_count ); ?></span>
-				<span class="like-label"><?php echo $liked ? 'Me gusta' : 'Me gusta'; ?></span>
+				<span>Me gusta</span>
 			</button>
 		</div>
 

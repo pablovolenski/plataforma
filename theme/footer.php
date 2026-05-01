@@ -1,4 +1,4 @@
-	<footer class="wp-site-footer">
+	<footer class="site-foot">
 		<p>
 			<?php bloginfo( 'name' ); ?> &copy; <?php echo esc_html( gmdate( 'Y' ) ); ?>
 		</p>

@@ -8,29 +8,31 @@
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 
-<div class="page-shell">
-
-	<header class="wp-site-header">
-		<a class="wp-site-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
+<header class="site-bar">
+	<div class="site-bar__inner">
+		<a class="site-bar__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Inicio">
 			<?php if ( has_custom_logo() ) : ?>
 				<?php the_custom_logo(); ?>
 			<?php else : ?>
-				<?php bloginfo( 'name' ); ?>
+				<span class="site-bar__brand-text"><?php bloginfo( 'name' ); ?></span>
 			<?php endif; ?>
 		</a>
 
-		<nav class="wp-site-header__nav" aria-label="Cuenta">
+		<nav class="site-bar__nav" aria-label="Cuenta">
 			<?php if ( is_user_logged_in() ) : ?>
-				<span class="wp-site-header__greeting">
-					Hola, <?php echo esc_html( wp_get_current_user()->display_name ); ?>
+				<span class="site-bar__greeting">
+					<?php echo esc_html( wp_get_current_user()->display_name ); ?>
 				</span>
-				<a href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
+				<a class="site-bar__link" href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">
 					Salir
 				</a>
 			<?php else : ?>
-				<a href="<?php echo esc_url( wp_login_url( get_permalink() ?: home_url( '/' ) ) ); ?>">
+				<a class="site-bar__link site-bar__link--accent" href="<?php echo esc_url( wp_login_url( get_permalink() ?: home_url( '/' ) ) ); ?>">
 					Ingresar
 				</a>
 			<?php endif; ?>
 		</nav>
-	</header>
+	</div>
+</header>
+
+<div class="page-shell">
