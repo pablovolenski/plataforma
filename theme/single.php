@@ -1,0 +1,68 @@
+<?php
+/**
+ * Single post view: full article with likes button.
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+get_header();
+
+if ( have_posts() ) {
+	the_post();
+}
+
+$post_id    = get_the_ID();
+$user_id    = get_current_user_id();
+$liked      = plataforma_user_has_liked( $post_id, $user_id );
+$like_count = plataforma_like_count( $post_id );
+$categories = get_the_category();
+$cat        = ! empty( $categories ) ? $categories[0] : null;
+$cat_name   = $cat ? $cat->name : '';
+?>
+
+<main class="layout layout--single">
+	<article class="panel article-single">
+
+		<div class="article-card__meta">
+			<?php if ( $cat_name ) : ?>
+				<span class="article-card__kind"><?php echo esc_html( $cat_name ); ?></span>
+			<?php endif; ?>
+			<a href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>">
+				<?php the_author(); ?>
+			</a>
+			<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>">
+				<?php echo esc_html( get_the_date( 'j. F Y, H:i' ) ); ?>
+			</time>
+		</div>
+
+		<h1 class="article-single__title"><?php the_title(); ?></h1>
+
+		<?php if ( has_excerpt() ) : ?>
+			<p class="article-single__summary"><?php the_excerpt(); ?></p>
+		<?php endif; ?>
+
+		<div class="article-single__body">
+			<?php the_content(); ?>
+		</div>
+
+		<div class="like-section">
+			<button
+				class="like-btn<?php echo $liked ? ' is-liked' : ''; ?>"
+				data-post-id="<?php echo esc_attr( $post_id ); ?>"
+				aria-label="<?php echo $liked ? 'Quitar me gusta' : 'Me gusta'; ?>"
+				aria-pressed="<?php echo $liked ? 'true' : 'false'; ?>"
+			>
+				<span class="like-heart" aria-hidden="true">♥</span>
+				<span class="like-count"><?php echo esc_html( $like_count ); ?></span>
+				<span class="like-label"><?php echo $liked ? 'Me gusta' : 'Me gusta'; ?></span>
+			</button>
+		</div>
+
+		<a class="back-link" href="<?php echo esc_url( home_url( '/' ) ); ?>">
+			← Volver al muro
+		</a>
+
+	</article>
+</main>
+
+<?php get_footer(); ?>

@@ -1,0 +1,515 @@
+/* =========================================================
+   Plataforma — Main Stylesheet
+   ========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Georgia, "Times New Roman", serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 214, 173, 0.65), transparent 32%),
+    linear-gradient(180deg, #f9f4eb 0%, var(--bg) 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------
+   Site header
+   --------------------------------------------------------- */
+
+.wp-site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0 14px;
+  border-bottom: 1px solid var(--panel-border);
+  margin-bottom: 28px;
+}
+
+.wp-site-header__brand {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.wp-site-header__brand:hover {
+  text-decoration: none;
+  color: var(--accent);
+}
+
+.wp-site-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.95rem;
+}
+
+.wp-site-header__greeting {
+  color: var(--muted);
+}
+
+.wp-site-header__nav a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------
+   Page shell
+   --------------------------------------------------------- */
+
+.page-shell {
+  width: min(1200px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+/* ---------------------------------------------------------
+   Layout
+   --------------------------------------------------------- */
+
+.layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+}
+
+.layout--single,
+.layout--page {
+  grid-template-columns: 1fr;
+  max-width: 780px;
+}
+
+/* ---------------------------------------------------------
+   Panels
+   --------------------------------------------------------- */
+
+.panel {
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+
+.panel__heading h2 {
+  margin: 8px 0 0;
+  font-size: 1.9rem;
+}
+
+/* ---------------------------------------------------------
+   Eyebrow / label
+   --------------------------------------------------------- */
+
+.eyebrow,
+.stat-card__label {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------
+   Access note
+   --------------------------------------------------------- */
+
+.access-note {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border-left: 4px solid var(--accent);
+  border-radius: 14px;
+  background: #fff1e6;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------
+   Compose form
+   --------------------------------------------------------- */
+
+.article-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.article-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.article-form input,
+.article-form select,
+.article-form textarea {
+  width: 100%;
+  border: 1px solid rgba(53, 32, 20, 0.15);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.article-form input:focus,
+.article-form select:focus,
+.article-form textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.article-form textarea {
+  resize: vertical;
+}
+
+.article-form button {
+  margin-top: 6px;
+  padding: 14px 18px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #a53a00, var(--accent));
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.article-form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(187, 77, 0, 0.24);
+}
+
+.article-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Character counter */
+.char-counter {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: right;
+  font-weight: 400;
+}
+
+.char-counter.is-near-limit {
+  color: var(--accent);
+}
+
+/* Feedback notice */
+.notice {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  margin-bottom: 14px;
+}
+
+.notice--success {
+  background: #e6f9ee;
+  color: #1a5c32;
+  border: 1px solid #b2dfc4;
+}
+
+.notice--error {
+  background: #fdecea;
+  color: #8b1a1a;
+  border: 1px solid #f5c6c6;
+}
+
+/* ---------------------------------------------------------
+   Wall / feed
+   --------------------------------------------------------- */
+
+.wall__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+/* Filter chips */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filter-chip {
+  padding: 10px 14px;
+  color: var(--muted);
+  background: #f6e7d6;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.filter-chip.is-active {
+  color: white;
+  background: var(--text);
+}
+
+/* Articles grid */
+.articles {
+  display: grid;
+  gap: 16px;
+}
+
+/* ---------------------------------------------------------
+   Article card
+   --------------------------------------------------------- */
+
+.article-card {
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(53, 32, 20, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  transition: box-shadow 160ms ease;
+}
+
+.article-card:hover {
+  box-shadow: 0 8px 24px rgba(63, 38, 24, 0.10);
+}
+
+.article-card.is-hidden {
+  display: none;
+}
+
+.article-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.article-card__kind {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.article-card h3 {
+  margin: 0 0 10px;
+  font-size: 1.55rem;
+  line-height: 1.2;
+}
+
+.article-card h3 a {
+  color: var(--text);
+}
+
+.article-card h3 a:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.article-card p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.article-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(53, 32, 20, 0.07);
+}
+
+.article-card__read-more {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------
+   Like button
+   --------------------------------------------------------- */
+
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1.5px solid rgba(53, 32, 20, 0.15);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.like-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.like-btn.is-liked {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.like-btn .like-heart {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ---------------------------------------------------------
+   Single post view
+   --------------------------------------------------------- */
+
+.article-single {
+  max-width: 780px;
+}
+
+.article-single__title {
+  margin: 12px 0 16px;
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.1;
+}
+
+.article-single__summary {
+  font-size: 1.15rem;
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0 0 24px;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.article-single__body {
+  line-height: 1.75;
+  font-size: 1.05rem;
+}
+
+.article-single__body p {
+  margin: 0 0 1.2em;
+}
+
+.like-section {
+  margin: 28px 0 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------
+   Empty state
+   --------------------------------------------------------- */
+
+.empty-state {
+  padding: 36px 18px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed rgba(53, 32, 20, 0.2);
+  border-radius: 18px;
+}
+
+/* ---------------------------------------------------------
+   Footer
+   --------------------------------------------------------- */
+
+.wp-site-footer {
+  margin-top: 48px;
+  padding: 20px 0;
+  border-top: 1px solid var(--panel-border);
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------
+   WordPress core image alignment
+   --------------------------------------------------------- */
+
+.alignleft  { float: left;  margin: 0 1.5em 1em 0; }
+.alignright { float: right; margin: 0 0 1em 1.5em; }
+.aligncenter { display: block; margin: 0 auto 1em; }
+.wp-caption  { max-width: 100%; }
+.wp-caption-text { font-size: 0.85rem; color: var(--muted); }
+
+/* ---------------------------------------------------------
+   Responsive
+   --------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wall__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 600px) {
+  .wp-site-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .article-single__title {
+    font-size: 1.8rem;
+  }
+}
+
+/* ---------------------------------------------------------
+   Print
+   --------------------------------------------------------- */
+
+@media print {
+  .composer,
+  .filters,
+  .wp-site-header__nav,
+  .like-btn {
+    display: none !important;
+  }
+}
