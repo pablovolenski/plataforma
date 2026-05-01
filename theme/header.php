@@ -12,7 +12,11 @@
 
 	<header class="wp-site-header">
 		<a class="wp-site-header__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>">
-			<?php bloginfo( 'name' ); ?>
+			<?php if ( has_custom_logo() ) : ?>
+				<?php the_custom_logo(); ?>
+			<?php else : ?>
+				<?php bloginfo( 'name' ); ?>
+			<?php endif; ?>
 		</a>
 
 		<nav class="wp-site-header__nav" aria-label="Cuenta">

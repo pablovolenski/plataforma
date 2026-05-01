@@ -12,8 +12,8 @@ body {
   font-family: Georgia, "Times New Roman", serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(255, 214, 173, 0.65), transparent 32%),
-    linear-gradient(180deg, #f9f4eb 0%, var(--bg) 100%);
+    radial-gradient(circle at top left, rgba(220, 120, 100, 0.18), transparent 32%),
+    linear-gradient(180deg, #faf6f3 0%, var(--bg) 100%);
 }
 
 button,
@@ -57,6 +57,12 @@ a:hover {
 .wp-site-header__brand:hover {
   text-decoration: none;
   color: var(--accent);
+}
+
+.wp-site-header__brand img {
+  display: block;
+  max-height: 52px;
+  width: auto;
 }
 
 .wp-site-header__nav {
@@ -141,7 +147,7 @@ a:hover {
   padding: 16px 18px;
   border-left: 4px solid var(--accent);
   border-radius: 14px;
-  background: #fff1e6;
+  background: #fff0ee;
   color: var(--muted);
 }
 
@@ -187,7 +193,7 @@ a:hover {
   padding: 14px 18px;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, #a53a00, var(--accent));
+  background: linear-gradient(135deg, #9e2a0f, var(--accent));
   border: 0;
   border-radius: 999px;
   cursor: pointer;
@@ -196,7 +202,7 @@ a:hover {
 
 .article-form button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(187, 77, 0, 0.24);
+  box-shadow: 0 12px 30px rgba(192, 57, 28, 0.28);
 }
 
 .article-form button:disabled {
