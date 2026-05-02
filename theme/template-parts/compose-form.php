@@ -85,27 +85,31 @@ foreach ( $cats as $cat ) {
 				<span class="char-counter" data-target="post_title" data-max="90">0 / 90</span>
 			</label>
 
-			<label>
-				Resumen
-				<textarea
-					name="post_excerpt"
-					rows="3"
-					maxlength="180"
-					placeholder="Un párrafo de resumen"
-					required
-				></textarea>
-				<span class="char-counter" data-target="post_excerpt" data-max="180">0 / 180</span>
-			</label>
+			<div class="editor-wrap">
+				<div class="editor-toolbar" id="editor-toolbar" role="toolbar" aria-label="Formato de texto">
+					<button type="button" class="editor-btn" data-cmd="bold"       title="Negrita (Ctrl+B)"><b>B</b></button>
+					<button type="button" class="editor-btn" data-cmd="italic"     title="Cursiva (Ctrl+I)"><i>I</i></button>
+					<button type="button" class="editor-btn" data-cmd="createLink" title="Insertar enlace">🔗</button>
+					<span class="editor-btn--separator" aria-hidden="true"></span>
+					<label class="editor-btn editor-btn--file" title="Adjuntar imagen">
+						📎
+						<input type="file" id="compose-image-input" accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+					</label>
+				</div>
+				<div
+					id="compose-editor"
+					class="compose-editor"
+					contenteditable="true"
+					data-placeholder="Escribe tu publicación…"
+					aria-label="Cuerpo de la publicación"
+					role="textbox"
+					aria-multiline="true"
+				></div>
+				<input type="hidden" name="post_content" id="compose-content-hidden">
+			</div>
 
-			<label>
-				Cuerpo del artículo
-				<textarea
-					name="post_content"
-					rows="8"
-					placeholder="Escribe el artículo completo"
-					required
-				></textarea>
-			</label>
+			<div id="link-preview-container" class="link-preview-container" hidden></div>
+			<input type="hidden" name="link_preview" id="compose-link-preview-data">
 
 			<div class="composer-modal__actions">
 				<button type="button" class="btn-ghost" data-action="close-composer">Cancelar</button>

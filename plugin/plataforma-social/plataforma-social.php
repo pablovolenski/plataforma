@@ -193,6 +193,19 @@ function plataforma_ajax_submit_post(): void {
 		wp_send_json_error( [ 'message' => $post_id->get_error_message() ], 500 );
 	}
 
+	// Save link preview meta if provided
+	if ( ! empty( $_POST['link_preview'] ) ) {
+		$preview = json_decode( wp_unslash( $_POST['link_preview'] ), true );
+		if ( is_array( $preview ) ) {
+			update_post_meta( $post_id, '_plataforma_link_preview', [
+				'title'       => sanitize_text_field( $preview['title']       ?? '' ),
+				'description' => sanitize_text_field( $preview['description'] ?? '' ),
+				'image'       => esc_url_raw( $preview['image']               ?? '' ),
+				'url'         => esc_url_raw( $preview['url']                 ?? '' ),
+			] );
+		}
+	}
+
 	wp_send_json_success( [ 'redirect' => get_permalink( $post_id ) ] );
 }
 
@@ -218,10 +231,171 @@ function plataforma_localise_scripts(): void {
 		'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
 		'likeNonce'  => wp_create_nonce( 'plataforma_like_nonce' ),
 		'postNonce'  => wp_create_nonce( 'plataforma_post_nonce' ),
+		'loginNonce' => wp_create_nonce( 'plataforma_login_nonce' ),
 		'loginUrl'   => wp_login_url( get_permalink() ?: home_url( '/' ) ),
 		'isLoggedIn' => is_user_logged_in(),
 		'canPost'    => current_user_can( 'publish_posts' ),
 		'userId'     => get_current_user_id(),
+	] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX login (nopriv — called from the inline login modal)
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_nopriv_plataforma_ajax_login', 'plataforma_ajax_login' );
+
+function plataforma_ajax_login(): void {
+	check_ajax_referer( 'plataforma_login_nonce', '_wpnonce' );
+
+	$credentials = [
+		'user_login'    => sanitize_user( wp_unslash( $_POST['log'] ?? '' ) ),
+		'user_password' => wp_unslash( $_POST['pwd'] ?? '' ),
+		'remember'      => ! empty( $_POST['rememberme'] ),
+	];
+
+	if ( ! $credentials['user_login'] || ! $credentials['user_password'] ) {
+		wp_send_json_error( [ 'message' => 'Usuario y contraseña son obligatorios.' ], 400 );
+	}
+
+	$user = wp_signon( $credentials, is_ssl() );
+
+	if ( is_wp_error( $user ) ) {
+		wp_send_json_error( [ 'message' => 'Usuario o contraseña incorrectos.' ], 401 );
+	}
+
+	wp_send_json_success( [ 'redirect' => home_url( '/' ) ] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX image upload (for rich compose editor)
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_upload_image', 'plataforma_ajax_upload_image' );
+
+function plataforma_ajax_upload_image(): void {
+	check_ajax_referer( 'plataforma_post_nonce', '_wpnonce' );
+
+	if ( ! current_user_can( 'publish_posts' ) ) {
+		wp_send_json_error( [ 'message' => 'Sin permiso para subir archivos.' ], 403 );
+	}
+
+	if ( empty( $_FILES['file']['name'] ) ) {
+		wp_send_json_error( [ 'message' => 'No se recibió ningún archivo.' ], 400 );
+	}
+
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+
+	$allowed_mimes = [
+		'jpg|jpeg|jpe' => 'image/jpeg',
+		'png'          => 'image/png',
+		'gif'          => 'image/gif',
+		'webp'         => 'image/webp',
+	];
+
+	$upload = wp_handle_upload( $_FILES['file'], [
+		'test_form' => false,
+		'mimes'     => $allowed_mimes,
+	] );
+
+	if ( isset( $upload['error'] ) ) {
+		wp_send_json_error( [ 'message' => $upload['error'] ], 500 );
+	}
+
+	$attach_id = wp_insert_attachment( [
+		'post_mime_type' => $upload['type'],
+		'post_title'     => sanitize_file_name( basename( $upload['file'] ) ),
+		'post_status'    => 'inherit',
+	], $upload['file'] );
+
+	if ( ! is_wp_error( $attach_id ) ) {
+		wp_update_attachment_metadata(
+			$attach_id,
+			wp_generate_attachment_metadata( $attach_id, $upload['file'] )
+		);
+	}
+
+	wp_send_json_success( [
+		'url' => $upload['url'],
+		'id'  => $attach_id,
+	] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX link preview scraper
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_fetch_link_preview',        'plataforma_ajax_link_preview' );
+add_action( 'wp_ajax_nopriv_plataforma_fetch_link_preview', 'plataforma_ajax_link_preview' );
+
+function plataforma_ajax_link_preview(): void {
+	check_ajax_referer( 'plataforma_post_nonce', '_wpnonce' );
+
+	$url = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+
+	if ( ! $url || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+		wp_send_json_error( [ 'message' => 'URL no válida.' ], 400 );
+	}
+
+	// Block private/loopback hosts
+	$host = (string) parse_url( $url, PHP_URL_HOST );
+	if ( ! $host || in_array( $host, [ 'localhost', '127.0.0.1', '::1' ], true ) ) {
+		wp_send_json_error( [], 400 );
+	}
+
+	$response = wp_remote_get( $url, [
+		'timeout'    => 6,
+		'user-agent' => 'facebookexternalhit/1.1',
+		'sslverify'  => false,
+	] );
+
+	if ( is_wp_error( $response ) ) {
+		wp_send_json_error( [ 'message' => 'No se pudo cargar la URL.' ], 502 );
+	}
+
+	$html = wp_remote_retrieve_body( $response );
+
+	// Helper: search og: meta in both attribute orders
+	$og = function ( string $prop ) use ( $html ): string {
+		// property before content
+		if ( preg_match(
+			'/<meta[^>]+property=["\']' . preg_quote( $prop, '/' ) . '["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i',
+			$html, $m
+		) ) {
+			return html_entity_decode( $m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		}
+		// content before property
+		if ( preg_match(
+			'/<meta[^>]+content=["\']([^"\']*)["\'][^>]+property=["\']' . preg_quote( $prop, '/' ) . '["\'][^>]*>/i',
+			$html, $m
+		) ) {
+			return html_entity_decode( $m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		}
+		return '';
+	};
+
+	$title = $og( 'og:title' );
+	$desc  = $og( 'og:description' );
+	$image = $og( 'og:image' );
+
+	// Fallbacks
+	if ( ! $title && preg_match( '/<title[^>]*>([^<]+)<\/title>/i', $html, $m ) ) {
+		$title = html_entity_decode( $m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+	if ( ! $desc && preg_match(
+		'/<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i',
+		$html, $m
+	) ) {
+		$desc = html_entity_decode( $m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	wp_send_json_success( [
+		'title'       => wp_strip_all_tags( mb_substr( $title, 0, 120 ) ),
+		'description' => wp_strip_all_tags( mb_substr( $desc, 0, 200 ) ),
+		'image'       => esc_url_raw( $image ),
+		'url'         => $url,
 	] );
 }
 
