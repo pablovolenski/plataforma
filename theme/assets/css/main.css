@@ -831,6 +831,113 @@ img { max-width: 100%; height: auto; }
 .wp-caption-text { font-size: 0.85rem; color: var(--muted); }
 
 /* =========================================================
+   Clickable avatar wrapper (post cards + single post)
+   ========================================================= */
+
+.article-card__avatar-link {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 50%;
+  line-height: 0;
+  transition: opacity 120ms ease;
+}
+
+.article-card__avatar-link:hover { opacity: 0.8; }
+
+/* =========================================================
+   Author profile page  (/author/username/)
+   ========================================================= */
+
+.author-profile {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.author-profile__avatar-link {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.author-profile__avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+  border: 3px solid var(--brand-soft);
+}
+
+.author-profile__body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.author-profile__name {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.author-profile__bio {
+  margin: 0 0 8px;
+  font-size: 0.97rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.author-profile__stats {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--subtle);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .author-profile {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .author-profile__avatar {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+/* =========================================================
+   Posts pagination (author archive)
+   ========================================================= */
+
+.posts-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+
+.posts-pagination .page-numbers {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.posts-pagination .current {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* =========================================================
    Print
    ========================================================= */
 

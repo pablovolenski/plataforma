@@ -20,7 +20,9 @@ $cat_name   = $cat ? $cat->name : '';
 	id="post-<?php the_ID(); ?>"
 >
 	<header class="article-card__head">
-		<?php echo get_avatar( get_the_author_meta( 'ID' ), 40, '', '', [ 'class' => 'article-card__avatar' ] ); ?>
+		<a class="article-card__avatar-link" href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>" aria-hidden="true" tabindex="-1">
+			<?php echo get_avatar( get_the_author_meta( 'ID' ), 40, '', '', [ 'class' => 'article-card__avatar' ] ); ?>
+		</a>
 		<div class="article-card__byline">
 			<a class="article-card__author" href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>">
 				<?php the_author(); ?>
