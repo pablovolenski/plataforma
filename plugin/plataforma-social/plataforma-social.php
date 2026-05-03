@@ -3,14 +3,14 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.2.0';
+const PLATAFORMA_DB_VERSION = '1.3.0';
 
 // ---------------------------------------------------------------------------
 // Activation
@@ -22,6 +22,7 @@ function plataforma_activate(): void {
 	plataforma_create_default_categories();
 	plataforma_cleanup_old_roles();
 	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
+	flush_rewrite_rules( false );
 }
 
 // Run migrations on init when the plugin updates
@@ -32,7 +33,20 @@ function plataforma_maybe_upgrade(): void {
 	if ( version_compare( $stored, PLATAFORMA_DB_VERSION, '<' ) ) {
 		plataforma_cleanup_old_roles();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
+		flush_rewrite_rules( false );
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Spanish URL slugs (set on every request, flushed once on upgrade)
+// ---------------------------------------------------------------------------
+
+add_action( 'init', 'plataforma_spanish_url_slugs', 1 );
+
+function plataforma_spanish_url_slugs(): void {
+	global $wp_rewrite;
+	$wp_rewrite->author_base   = 'autor';
+	$wp_rewrite->category_base = 'categoria';
 }
 
 /**
