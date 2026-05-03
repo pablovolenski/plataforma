@@ -24,7 +24,10 @@ function plataforma_theme_setup(): void {
 		'flex-width'  => true,
 	] );
 
-	register_nav_menus( [ 'primary' => 'Menú principal' ] );
+	register_nav_menus( [
+		'primary' => 'Menú principal',
+		'footer'  => 'Menú de pie de página',
+	] );
 }
 
 // ---------------------------------------------------------------------------

@@ -49,6 +49,27 @@ $cat_name   = $cat ? $cat->name : '';
 			<?php the_content(); ?>
 		</div>
 
+		<?php
+		$lp = get_post_meta( $post_id, '_plataforma_link_preview', true );
+		if ( is_array( $lp ) && ! empty( $lp['title'] ) ) :
+			$lp_domain = ! empty( $lp['url'] ) ? (string) wp_parse_url( $lp['url'], PHP_URL_HOST ) : '';
+			?>
+			<a class="article-link-preview link-preview-card" href="<?php echo esc_url( $lp['url'] ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php if ( ! empty( $lp['image'] ) ) : ?>
+					<img class="link-preview-card__img" src="<?php echo esc_url( $lp['image'] ); ?>" alt="" loading="lazy">
+				<?php endif; ?>
+				<div class="link-preview-card__body">
+					<div class="link-preview-card__title"><?php echo esc_html( $lp['title'] ); ?></div>
+					<?php if ( ! empty( $lp['description'] ) ) : ?>
+						<div class="link-preview-card__desc"><?php echo esc_html( $lp['description'] ); ?></div>
+					<?php endif; ?>
+					<?php if ( $lp_domain ) : ?>
+						<div class="link-preview-card__domain"><?php echo esc_html( $lp_domain ); ?></div>
+					<?php endif; ?>
+				</div>
+			</a>
+		<?php endif; ?>
+
 		<div class="like-section">
 			<button
 				class="like-btn<?php echo $liked ? ' is-liked' : ''; ?>"
