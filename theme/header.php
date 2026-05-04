@@ -10,16 +10,23 @@
 
 <header class="site-bar">
 	<div class="site-bar__inner">
-		<a class="site-bar__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Inicio">
-			<?php if ( has_custom_logo() ) : ?>
-				<?php the_custom_logo(); ?>
-			<?php else : ?>
+		<?php if ( has_custom_logo() ) : ?>
+			<?php the_custom_logo(); ?>
+		<?php else : ?>
+			<a class="site-bar__brand" href="<?php echo esc_url( home_url( '/' ) ); ?>" aria-label="Inicio">
 				<span class="site-bar__brand-text"><?php bloginfo( 'name' ); ?></span>
-			<?php endif; ?>
-		</a>
+			</a>
+		<?php endif; ?>
 
 		<nav class="site-bar__nav" aria-label="Cuenta">
 			<?php if ( is_user_logged_in() ) : ?>
+				<?php if ( current_user_can( 'publish_posts' ) ) : ?>
+					<a class="site-bar__link site-bar__link--accent site-bar__write"
+					   href="<?php echo esc_url( home_url( '/escribir/' ) ); ?>">
+						<span aria-hidden="true">✎</span>
+						<span class="site-bar__write-label">Escribir</span>
+					</a>
+				<?php endif; ?>
 				<span class="site-bar__greeting">
 					<?php echo esc_html( wp_get_current_user()->display_name ); ?>
 				</span>

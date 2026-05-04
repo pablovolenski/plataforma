@@ -3,14 +3,14 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.3.0
+ * Version:     1.4.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.3.0';
+const PLATAFORMA_DB_VERSION = '1.4.0';
 
 // ---------------------------------------------------------------------------
 // Activation
@@ -412,6 +412,29 @@ function plataforma_ajax_link_preview(): void {
 		'url'         => $url,
 	] );
 }
+
+// ---------------------------------------------------------------------------
+// /escribir/ rewrite: virtual route → page-escribir.php template
+// ---------------------------------------------------------------------------
+
+add_action( 'init', function () {
+	add_rewrite_rule( '^escribir/?$', 'index.php?plataforma_escribir=1', 'top' );
+}, 2 );
+
+add_filter( 'query_vars', function ( $vars ) {
+	$vars[] = 'plataforma_escribir';
+	return $vars;
+} );
+
+add_filter( 'template_include', function ( $template ) {
+	if ( get_query_var( 'plataforma_escribir' ) ) {
+		$candidate = get_template_directory() . '/page-escribir.php';
+		if ( file_exists( $candidate ) ) {
+			return $candidate;
+		}
+	}
+	return $template;
+} );
 
 // ---------------------------------------------------------------------------
 // Redirect non-admins to home after login (no ugly backend)
