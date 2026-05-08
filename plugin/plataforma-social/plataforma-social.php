@@ -3,14 +3,17 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.5.0
+ * Version:     1.6.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.5.0';
+const PLATAFORMA_DB_VERSION = '1.6.0';
+
+// Hide the frontend admin bar for all users — access WP admin via /wp-admin
+add_filter( 'show_admin_bar', '__return_false' );
 
 // ---------------------------------------------------------------------------
 // Activation
@@ -34,6 +37,7 @@ function plataforma_maybe_upgrade(): void {
 	if ( version_compare( $stored, PLATAFORMA_DB_VERSION, '<' ) ) {
 		plataforma_cleanup_old_roles();
 		plataforma_grant_notice_caps();
+		plataforma_create_default_categories();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 		flush_rewrite_rules( false );
 	}
@@ -295,9 +299,11 @@ function plataforma_cleanup_old_roles(): void {
 
 function plataforma_create_default_categories(): void {
 	$categories = [
-		[ 'name' => 'Opinión',  'slug' => 'opinion'  ],
-		[ 'name' => 'Noticias', 'slug' => 'noticias' ],
-		[ 'name' => 'Eventos',  'slug' => 'eventos'  ],
+		[ 'name' => 'Paseos Urbanos', 'slug' => 'paseos-urbanos' ],
+		[ 'name' => 'Historia Oral',  'slug' => 'historia-oral'  ],
+		[ 'name' => 'Mapa Textil',    'slug' => 'mapa-textil'    ],
+		[ 'name' => 'Arte',           'slug' => 'arte'           ],
+		[ 'name' => 'Eventos',        'slug' => 'eventos'        ],
 	];
 
 	foreach ( $categories as $cat ) {

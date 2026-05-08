@@ -90,21 +90,18 @@ img { max-width: 100%; height: auto; }
 .site-bar__nav {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   font-size: 0.92rem;
 }
 
-.site-bar__greeting {
-  color: var(--muted);
-  font-style: italic;
-}
-
+/* Plain nav links — Tablero, etc. */
 .site-bar__link {
   color: var(--muted);
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 999px;
   transition: background 140ms ease, color 140ms ease;
+  white-space: nowrap;
 }
 
 .site-bar__link:hover {
@@ -113,6 +110,7 @@ img { max-width: 100%; height: auto; }
   text-decoration: none;
 }
 
+/* Accent link (Escribir) */
 .site-bar__link--accent {
   color: white;
   background: var(--brand);
@@ -129,9 +127,71 @@ img { max-width: 100%; height: auto; }
   gap: 5px;
 }
 
-@media (max-width: 480px) {
+/* CTA pill buttons — Ingresar / Salir */
+.site-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background 140ms ease, color 140ms ease,
+              border-color 140ms ease, box-shadow 140ms ease,
+              transform 80ms ease;
+}
+
+.site-bar__btn:hover { text-decoration: none; }
+
+.site-bar__btn--primary {
+  background: var(--brand);
+  color: #fff;
+  border: 2px solid var(--brand);
+  box-shadow: 0 2px 8px rgba(192, 57, 28, 0.22);
+}
+
+.site-bar__btn--primary:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(192, 57, 28, 0.32);
+}
+
+.site-bar__btn--primary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.site-bar__btn--ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--border);
+}
+
+.site-bar__btn--ghost:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-softer);
+}
+
+/* Logged-in user name — subtle, truncated */
+.site-bar__user {
+  font-size: 0.84rem;
+  color: var(--subtle);
+  font-weight: 500;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
   .site-bar__write-label { display: none; }
-  .site-bar__greeting    { display: none; }
+  .site-bar__user        { display: none; }
+  .site-bar__link[href*="tablero"] { display: none; }
 }
 
 /* =========================================================
@@ -162,9 +222,9 @@ img { max-width: 100%; height: auto; }
    ========================================================= */
 
 .page-shell {
-  width: min(680px, calc(100% - 24px));
+  width: min(680px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 24px 0 48px;
+  padding: 24px 0 56px;
 }
 
 /* =========================================================
@@ -334,12 +394,12 @@ img { max-width: 100%; height: auto; }
 
 .article-form {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .article-form label {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text);
@@ -1055,12 +1115,12 @@ img { max-width: 100%; height: auto; }
 
 .login-form {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .login-form label {
   display: grid;
-  gap: 5px;
+  gap: 8px;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text);
@@ -1353,6 +1413,17 @@ img { max-width: 100%; height: auto; }
   max-width: 420px;
 }
 
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 24px;
+    border-radius: var(--radius-lg);
+  }
+
+  .ingresar-page {
+    padding: 20px 0 40px;
+  }
+}
+
 .login-card__title {
   margin: 0 0 6px;
   font-size: 1.65rem;
@@ -1410,7 +1481,12 @@ img { max-width: 100%; height: auto; }
   border-bottom: 2px solid var(--border);
   margin: 0 0 28px;
   padding: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+
+.tablero__tabs::-webkit-scrollbar { display: none; }
 
 .tablero__tab {
   padding: 10px 20px;
@@ -1544,12 +1620,12 @@ img { max-width: 100%; height: auto; }
 
 .profile-form {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .profile-form label {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--text);
