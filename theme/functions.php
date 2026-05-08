@@ -40,6 +40,14 @@ function plataforma_enqueue_assets(): void {
 	$version = wp_get_theme()->get( 'Version' );
 	$uri     = get_template_directory_uri();
 
+	// style.css — defines the :root CSS-variable tokens used throughout main.css
+	wp_enqueue_style(
+		'plataforma-style',
+		get_stylesheet_uri(),
+		[],
+		$version
+	);
+
 	// Google Fonts: Montserrat (Soleil-style geometric sans-serif, free)
 	wp_enqueue_style(
 		'plataforma-fonts',
