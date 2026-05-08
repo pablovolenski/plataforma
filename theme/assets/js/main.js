@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initComposerModal();
   initComposeForm();
   initLoginModal();
+  initLoginPage();
+  initDashboardTabs();
+  initProfileForm();
   initShare();
 });
 
@@ -385,6 +388,163 @@ function initLinkPreview(editor) {
   }
 
   return { getPreview: () => storedPreview };
+}
+
+// ---------------------------------------------------------------------------
+// Login page (/ingresar/) — AJAX submission with redirect
+// ---------------------------------------------------------------------------
+
+function initLoginPage() {
+  const form   = document.getElementById('login-form-page');
+  const notice = document.getElementById('login-notice');
+  if (!form || typeof PlataformaData === 'undefined') return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn      = form.querySelector('button[type="submit"]');
+    const original = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Ingresando…';
+
+    const redirectTo = form.querySelector('[name="redirect_to"]')?.value
+      || PlataformaData.tableroUrl;
+
+    const body = new URLSearchParams({
+      action:      'plataforma_ajax_login',
+      _wpnonce:    PlataformaData.loginNonce,
+      log:         form.querySelector('[name="log"]').value.trim(),
+      pwd:         form.querySelector('[name="pwd"]').value,
+      rememberme:  form.querySelector('[name="rememberme"]')?.checked ? 'forever' : '',
+      redirect_to: redirectTo,
+    });
+
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.href = data.data?.redirect || PlataformaData.tableroUrl;
+        return;
+      }
+      showNotice(notice, data.data?.message || 'Error al ingresar. Intenta de nuevo.', 'error');
+    } catch {
+      showNotice(notice, 'Error de red. Verifica tu conexión.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = original;
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard tabs (/tablero/) — URL-hash based tab switching
+// ---------------------------------------------------------------------------
+
+function initDashboardTabs() {
+  const tabsRoot = document.querySelector('.tablero__tabs');
+  if (!tabsRoot) return;
+
+  const tabs   = Array.from(tabsRoot.querySelectorAll('.tablero__tab'));
+  const panels = Array.from(document.querySelectorAll('.tablero__panel'));
+
+  function activateTab(name) {
+    tabs.forEach((tab) => {
+      const active = tab.dataset.tab === name;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+    panels.forEach((panel) => {
+      panel.hidden = panel.id !== `tab-${name}`;
+    });
+    history.replaceState(null, '', `#${name}`);
+  }
+
+  const hash    = window.location.hash.replace('#', '');
+  const initial = tabs.find((t) => t.dataset.tab === hash)
+    ? hash
+    : (tabs[0]?.dataset.tab || 'mensajes');
+  activateTab(initial);
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => activateTab(tab.dataset.tab));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Profile form (/tablero/#perfil) — update info & change password via AJAX
+// ---------------------------------------------------------------------------
+
+function initProfileForm() {
+  const profileForm    = document.getElementById('profile-form');
+  const passwordForm   = document.getElementById('password-form');
+  const profileNotice  = document.getElementById('profile-notice');
+  const passwordNotice = document.getElementById('password-notice');
+
+  if (!profileForm || typeof PlataformaData === 'undefined') return;
+
+  profileForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn = profileForm.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Guardando…';
+
+    const body = new URLSearchParams({
+      action:       'plataforma_update_profile',
+      _wpnonce:     profileForm.querySelector('[name="_wpnonce"]').value,
+      display_name: profileForm.querySelector('[name="display_name"]').value.trim(),
+      user_email:   profileForm.querySelector('[name="user_email"]').value.trim(),
+      description:  profileForm.querySelector('[name="description"]').value.trim(),
+    });
+
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      const data = await res.json();
+      showNotice(profileNotice,
+        data.data?.message || (data.success ? 'Guardado.' : 'Error al guardar.'),
+        data.success ? 'success' : 'error');
+    } catch {
+      showNotice(profileNotice, 'Error de red.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = orig;
+    }
+  });
+
+  if (!passwordForm) return;
+
+  passwordForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn = passwordForm.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Actualizando…';
+
+    const body = new URLSearchParams({
+      action:           'plataforma_change_password',
+      _wpnonce:         passwordForm.querySelector('[name="_wpnonce"]').value,
+      current_password: passwordForm.querySelector('[name="current_password"]').value,
+      new_password:     passwordForm.querySelector('[name="new_password"]').value,
+      confirm_password: passwordForm.querySelector('[name="confirm_password"]').value,
+    });
+
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      const data = await res.json();
+      showNotice(passwordNotice,
+        data.data?.message || (data.success ? 'Contraseña actualizada.' : 'Error.'),
+        data.success ? 'success' : 'error');
+      if (data.success) passwordForm.reset();
+    } catch {
+      showNotice(passwordNotice, 'Error de red.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = orig;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
