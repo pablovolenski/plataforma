@@ -3,14 +3,14 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.4.0
+ * Version:     1.5.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.4.0';
+const PLATAFORMA_DB_VERSION = '1.5.0';
 
 // ---------------------------------------------------------------------------
 // Activation
@@ -21,6 +21,7 @@ register_activation_hook( __FILE__, 'plataforma_activate' );
 function plataforma_activate(): void {
 	plataforma_create_default_categories();
 	plataforma_cleanup_old_roles();
+	plataforma_grant_notice_caps();
 	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 	flush_rewrite_rules( false );
 }
@@ -32,10 +33,228 @@ function plataforma_maybe_upgrade(): void {
 	$stored = get_option( 'plataforma_db_version', '0' );
 	if ( version_compare( $stored, PLATAFORMA_DB_VERSION, '<' ) ) {
 		plataforma_cleanup_old_roles();
+		plataforma_grant_notice_caps();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 		flush_rewrite_rules( false );
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Admin notices CPT (plataforma_notice) — only admins can create/edit
+// ---------------------------------------------------------------------------
+
+add_action( 'init', 'plataforma_register_notice_cpt', 3 );
+
+function plataforma_register_notice_cpt(): void {
+	register_post_type( 'plataforma_notice', [
+		'label'           => 'Avisos',
+		'labels'          => [
+			'name'          => 'Avisos',
+			'singular_name' => 'Aviso',
+			'add_new_item'  => 'Nuevo aviso',
+			'edit_item'     => 'Editar aviso',
+			'all_items'     => 'Todos los avisos',
+		],
+		'public'             => false,
+		'publicly_queryable' => false,
+		'show_ui'            => true,
+		'show_in_menu'       => true,
+		'show_in_rest'       => true,
+		'menu_icon'          => 'dashicons-megaphone',
+		'menu_position'      => 5,
+		'supports'           => [ 'title', 'editor', 'author' ],
+		'capability_type'    => 'plataforma_notice',
+		'map_meta_cap'       => true,
+	] );
+}
+
+function plataforma_grant_notice_caps(): void {
+	$admin = get_role( 'administrator' );
+	if ( ! $admin ) {
+		return;
+	}
+	foreach ( [
+		'edit_plataforma_notice',
+		'read_plataforma_notice',
+		'delete_plataforma_notice',
+		'edit_plataforma_notices',
+		'edit_others_plataforma_notices',
+		'publish_plataforma_notices',
+		'read_private_plataforma_notices',
+		'delete_plataforma_notices',
+		'delete_private_plataforma_notices',
+		'delete_published_plataforma_notices',
+		'delete_others_plataforma_notices',
+		'edit_private_plataforma_notices',
+		'edit_published_plataforma_notices',
+	] as $cap ) {
+		$admin->add_cap( $cap );
+	}
+}
+
+// ---------------------------------------------------------------------------
+// User groups — option-based list managed by admin, assigned per user
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns all defined groups as [ ['id' => slug, 'name' => label], ... ]
+ */
+function plataforma_get_groups(): array {
+	$raw    = get_option( 'plataforma_groups', '' );
+	$lines  = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
+	$groups = [];
+	foreach ( $lines as $name ) {
+		$groups[] = [
+			'id'   => sanitize_title( $name ),
+			'name' => $name,
+		];
+	}
+	return $groups;
+}
+
+// Admin settings page: Settings > Grupos Plataforma
+add_action( 'admin_menu', function () {
+	add_options_page(
+		'Grupos de usuarios',
+		'Grupos Plataforma',
+		'manage_options',
+		'plataforma-grupos',
+		'plataforma_groups_admin_page_html'
+	);
+} );
+
+function plataforma_groups_admin_page_html(): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+
+	if ( isset( $_POST['plataforma_groups_save'] ) ) {
+		check_admin_referer( 'plataforma_groups_save' );
+		$raw = sanitize_textarea_field( wp_unslash( $_POST['plataforma_groups_text'] ?? '' ) );
+		update_option( 'plataforma_groups', $raw );
+		echo '<div class="notice notice-success is-dismissible"><p>Grupos guardados.</p></div>';
+	}
+
+	$current = (string) get_option( 'plataforma_groups', '' );
+	?>
+	<div class="wrap">
+		<h1>Grupos de usuarios</h1>
+		<p>Un nombre de grupo por línea. El administrador asigna grupos a cada usuario desde su perfil.</p>
+		<form method="post">
+			<?php wp_nonce_field( 'plataforma_groups_save' ); ?>
+			<textarea name="plataforma_groups_text" rows="12"
+			          style="width:400px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
+			<p>
+				<input type="submit" name="plataforma_groups_save"
+				       class="button button-primary" value="Guardar grupos">
+			</p>
+		</form>
+	</div>
+	<?php
+}
+
+// User edit screen: group assignment checkboxes (admin only)
+add_action( 'show_user_profile', 'plataforma_user_groups_fields' );
+add_action( 'edit_user_profile', 'plataforma_user_groups_fields' );
+
+function plataforma_user_groups_fields( WP_User $user ): void {
+	$groups = plataforma_get_groups();
+	if ( empty( $groups ) ) {
+		return;
+	}
+	$user_groups = (array) ( get_user_meta( $user->ID, '_plataforma_groups', true ) ?: [] );
+	?>
+	<h2>Grupos Plataforma</h2>
+	<table class="form-table" role="presentation">
+		<tr>
+			<th scope="row"><label>Grupos asignados</label></th>
+			<td>
+				<?php foreach ( $groups as $g ) : ?>
+					<label style="display:block;margin-bottom:5px;">
+						<input
+							type="checkbox"
+							name="plataforma_groups[]"
+							value="<?php echo esc_attr( $g['id'] ); ?>"
+							<?php checked( in_array( $g['id'], $user_groups, true ) ); ?>
+						>
+						<?php echo esc_html( $g['name'] ); ?>
+					</label>
+				<?php endforeach; ?>
+			</td>
+		</tr>
+	</table>
+	<?php
+}
+
+add_action( 'personal_options_update', 'plataforma_save_user_groups' );
+add_action( 'edit_user_profile_update', 'plataforma_save_user_groups' );
+
+function plataforma_save_user_groups( int $user_id ): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	$groups = array_map( 'sanitize_key', (array) ( $_POST['plataforma_groups'] ?? [] ) );
+	update_user_meta( $user_id, '_plataforma_groups', $groups );
+}
+
+// User list: column showing assigned groups
+add_filter( 'manage_users_columns', function ( $cols ) {
+	$cols['plataforma_groups'] = 'Grupos';
+	return $cols;
+} );
+
+add_filter( 'manage_users_custom_column', function ( $output, $col, $user_id ) {
+	if ( 'plataforma_groups' !== $col ) {
+		return $output;
+	}
+	$groups      = plataforma_get_groups();
+	$user_groups = (array) ( get_user_meta( $user_id, '_plataforma_groups', true ) ?: [] );
+	$names       = [];
+	foreach ( $groups as $g ) {
+		if ( in_array( $g['id'], $user_groups, true ) ) {
+			$names[] = esc_html( $g['name'] );
+		}
+	}
+	return $names ? implode( ', ', $names ) : '<span style="color:#999">—</span>';
+}, 10, 3 );
+
+// ---------------------------------------------------------------------------
+// Login takeover — /ingresar/ replaces wp-login.php for non-admins
+// ---------------------------------------------------------------------------
+
+// Filter all login_url() calls to point to our page
+add_filter( 'login_url', function ( $url, $redirect, $force_reauth ) {
+	$login = home_url( '/ingresar/' );
+	if ( $redirect ) {
+		$login = add_query_arg( 'redirect_to', rawurlencode( $redirect ), $login );
+	}
+	return $login;
+}, 10, 3 );
+
+// Redirect wp-login.php GET requests for non-admins
+add_action( 'init', function () {
+	$uri = $_SERVER['REQUEST_URI'] ?? '';
+	if ( false === strpos( $uri, 'wp-login.php' ) ) {
+		return;
+	}
+	// Let admins through and let POST (actual auth + WP nonces) through
+	if ( 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+	if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	// Allow password-reset actions (the link in the email still works)
+	$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'login';
+	if ( in_array( $action, [ 'rp', 'resetpass', 'lostpassword', 'confirmaction' ], true ) ) {
+		return;
+	}
+	$redirect_to  = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : home_url( '/tablero/' );
+	wp_safe_redirect(
+		add_query_arg( 'redirect_to', rawurlencode( $redirect_to ), home_url( '/ingresar/' ) )
+	);
+	exit;
+}, 1 );
 
 // ---------------------------------------------------------------------------
 // Spanish URL slugs (set on every request, flushed once on upgrade)
@@ -242,14 +461,16 @@ function plataforma_localise_scripts(): void {
 	}
 
 	wp_localize_script( 'plataforma-main', 'PlataformaData', [
-		'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
-		'likeNonce'  => wp_create_nonce( 'plataforma_like_nonce' ),
-		'postNonce'  => wp_create_nonce( 'plataforma_post_nonce' ),
-		'loginNonce' => wp_create_nonce( 'plataforma_login_nonce' ),
-		'loginUrl'   => wp_login_url( get_permalink() ?: home_url( '/' ) ),
-		'isLoggedIn' => is_user_logged_in(),
-		'canPost'    => current_user_can( 'publish_posts' ),
-		'userId'     => get_current_user_id(),
+		'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+		'likeNonce'    => wp_create_nonce( 'plataforma_like_nonce' ),
+		'postNonce'    => wp_create_nonce( 'plataforma_post_nonce' ),
+		'loginNonce'   => wp_create_nonce( 'plataforma_login_nonce' ),
+		'profileNonce' => wp_create_nonce( 'plataforma_profile_nonce' ),
+		'loginUrl'     => home_url( '/ingresar/' ),
+		'tableroUrl'   => home_url( '/tablero/' ),
+		'isLoggedIn'   => is_user_logged_in(),
+		'canPost'      => current_user_can( 'publish_posts' ),
+		'userId'       => get_current_user_id(),
 	] );
 }
 
@@ -278,7 +499,12 @@ function plataforma_ajax_login(): void {
 		wp_send_json_error( [ 'message' => 'Usuario o contraseña incorrectos.' ], 401 );
 	}
 
-	wp_send_json_success( [ 'redirect' => home_url( '/' ) ] );
+	$requested   = isset( $_POST['redirect_to'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_to'] ) ) : '';
+	$redirect_to = ( $requested && wp_validate_redirect( $requested, false ) )
+		? $requested
+		: home_url( '/tablero/' );
+
+	wp_send_json_success( [ 'redirect' => $redirect_to ] );
 }
 
 // ---------------------------------------------------------------------------
@@ -414,30 +640,118 @@ function plataforma_ajax_link_preview(): void {
 }
 
 // ---------------------------------------------------------------------------
-// /escribir/ rewrite: virtual route → page-escribir.php template
+// Virtual routes — /ingresar/, /tablero/, /escribir/
 // ---------------------------------------------------------------------------
 
 add_action( 'init', function () {
+	add_rewrite_rule( '^ingresar/?$', 'index.php?plataforma_ingresar=1', 'top' );
+	add_rewrite_rule( '^tablero/?$',  'index.php?plataforma_tablero=1',  'top' );
 	add_rewrite_rule( '^escribir/?$', 'index.php?plataforma_escribir=1', 'top' );
 }, 2 );
 
 add_filter( 'query_vars', function ( $vars ) {
+	$vars[] = 'plataforma_ingresar';
+	$vars[] = 'plataforma_tablero';
 	$vars[] = 'plataforma_escribir';
 	return $vars;
 } );
 
 add_filter( 'template_include', function ( $template ) {
-	if ( get_query_var( 'plataforma_escribir' ) ) {
-		$candidate = get_template_directory() . '/page-escribir.php';
-		if ( file_exists( $candidate ) ) {
-			return $candidate;
+	$map = [
+		'plataforma_ingresar' => '/page-ingresar.php',
+		'plataforma_tablero'  => '/page-tablero.php',
+		'plataforma_escribir' => '/page-escribir.php',
+	];
+	foreach ( $map as $var => $file ) {
+		if ( get_query_var( $var ) ) {
+			$candidate = get_template_directory() . $file;
+			if ( file_exists( $candidate ) ) {
+				return $candidate;
+			}
 		}
 	}
 	return $template;
 } );
 
 // ---------------------------------------------------------------------------
-// Redirect non-admins to home after login (no ugly backend)
+// AJAX: Profile info update (display name, email, bio)
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_update_profile', 'plataforma_update_profile' );
+
+function plataforma_update_profile(): void {
+	check_ajax_referer( 'plataforma_profile_nonce', '_wpnonce' );
+
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [ 'message' => 'No autenticado.' ], 401 );
+	}
+
+	$data         = [ 'ID' => $user_id ];
+	$display_name = sanitize_text_field( wp_unslash( $_POST['display_name'] ?? '' ) );
+	$user_email   = sanitize_email( wp_unslash( $_POST['user_email'] ?? '' ) );
+	$description  = sanitize_textarea_field( wp_unslash( $_POST['description'] ?? '' ) );
+
+	if ( $display_name ) {
+		$data['display_name'] = $display_name;
+	}
+	if ( $user_email && is_email( $user_email ) ) {
+		$data['user_email'] = $user_email;
+	}
+
+	if ( count( $data ) > 1 ) {
+		$result = wp_update_user( $data );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ], 400 );
+		}
+	}
+
+	update_user_meta( $user_id, 'description', $description );
+
+	wp_send_json_success( [ 'message' => 'Perfil actualizado.' ] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX: Password change
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_change_password', 'plataforma_change_password' );
+
+function plataforma_change_password(): void {
+	check_ajax_referer( 'plataforma_profile_nonce', '_wpnonce' );
+
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [ 'message' => 'No autenticado.' ], 401 );
+	}
+
+	$current = wp_unslash( $_POST['current_password'] ?? '' );
+	$new     = wp_unslash( $_POST['new_password']     ?? '' );
+	$confirm = wp_unslash( $_POST['confirm_password'] ?? '' );
+
+	if ( ! $current || ! $new || ! $confirm ) {
+		wp_send_json_error( [ 'message' => 'Todos los campos son obligatorios.' ], 400 );
+	}
+	if ( $new !== $confirm ) {
+		wp_send_json_error( [ 'message' => 'Las contraseñas nuevas no coinciden.' ], 400 );
+	}
+	if ( strlen( $new ) < 8 ) {
+		wp_send_json_error( [ 'message' => 'La contraseña debe tener al menos 8 caracteres.' ], 400 );
+	}
+
+	$user = get_user_by( 'id', $user_id );
+	if ( ! wp_check_password( $current, $user->user_pass, $user_id ) ) {
+		wp_send_json_error( [ 'message' => 'La contraseña actual es incorrecta.' ], 403 );
+	}
+
+	wp_set_password( $new, $user_id );
+	wp_set_auth_cookie( $user_id, true ); // keep the user logged in after reset
+
+	wp_send_json_success( [ 'message' => 'Contraseña actualizada correctamente.' ] );
+}
+
+// ---------------------------------------------------------------------------
+// Redirect non-admins to /tablero/ after WP form login
 // ---------------------------------------------------------------------------
 
 add_filter( 'login_redirect', 'plataforma_login_redirect', 10, 3 );
@@ -445,7 +759,7 @@ add_filter( 'login_redirect', 'plataforma_login_redirect', 10, 3 );
 function plataforma_login_redirect( $redirect_to, $request, $user ) {
 	if ( $user instanceof WP_User && $user->ID && ! is_wp_error( $user ) ) {
 		if ( ! user_can( $user, 'manage_options' ) ) {
-			return home_url( '/' );
+			return home_url( '/tablero/' );
 		}
 	}
 	return $redirect_to;
