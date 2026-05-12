@@ -3,14 +3,14 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.6.0
+ * Version:     1.7.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.6.0';
+const PLATAFORMA_DB_VERSION = '1.7.0';
 
 // Hide the frontend admin bar for all users — access WP admin via /wp-admin
 add_filter( 'show_admin_bar', '__return_false' );
@@ -23,6 +23,7 @@ register_activation_hook( __FILE__, 'plataforma_activate' );
 
 function plataforma_activate(): void {
 	plataforma_create_default_categories();
+	plataforma_create_default_pages();
 	plataforma_cleanup_old_roles();
 	plataforma_grant_notice_caps();
 	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
@@ -38,6 +39,7 @@ function plataforma_maybe_upgrade(): void {
 		plataforma_cleanup_old_roles();
 		plataforma_grant_notice_caps();
 		plataforma_create_default_categories();
+		plataforma_create_default_pages();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 		flush_rewrite_rules( false );
 	}
@@ -311,6 +313,56 @@ function plataforma_create_default_categories(): void {
 			wp_insert_term( $cat['name'], 'category', [ 'slug' => $cat['slug'] ] );
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Default static pages (Über uns, Werke, Mitgliedschaft, Kontakt)
+// ---------------------------------------------------------------------------
+
+function plataforma_create_default_pages(): void {
+	$pages = [
+		[ 'title' => 'Über uns',       'slug' => 'uber-uns'       ],
+		[ 'title' => 'Werke',          'slug' => 'werke'          ],
+		[ 'title' => 'Mitgliedschaft', 'slug' => 'mitgliedschaft' ],
+		[ 'title' => 'Kontakt',        'slug' => 'kontakt'        ],
+	];
+	foreach ( $pages as $p ) {
+		if ( ! get_page_by_path( $p['slug'] ) ) {
+			wp_insert_post( [
+				'post_title'  => $p['title'],
+				'post_name'   => $p['slug'],
+				'post_status' => 'publish',
+				'post_type'   => 'page',
+				'post_author' => 1,
+			] );
+		}
+	}
+}
+
+/**
+ * Fallback primary nav rendered when no menu is assigned to the "primary" location.
+ * Called by wp_nav_menu() via its fallback_cb argument.
+ */
+function plataforma_default_page_nav( array $args ): void {
+	$home_active = is_front_page() || is_home();
+	$items = [
+		[ 'url' => home_url( '/' ),                'label' => 'Plataforma',    'class' => $home_active ? 'current-menu-item page-nav__home' : 'page-nav__home' ],
+		[ 'url' => home_url( '/uber-uns/' ),       'label' => 'Über uns',      'class' => is_page( 'uber-uns' ) ? 'current-menu-item' : '' ],
+		[ 'url' => home_url( '/werke/' ),          'label' => 'Werke',         'class' => is_page( 'werke' ) ? 'current-menu-item' : '' ],
+		[ 'url' => home_url( '/mitgliedschaft/' ), 'label' => 'Mitgliedschaft','class' => is_page( 'mitgliedschaft' ) ? 'current-menu-item' : '' ],
+		[ 'url' => home_url( '/kontakt/' ),        'label' => 'Kontakt',       'class' => is_page( 'kontakt' ) ? 'current-menu-item' : '' ],
+	];
+	echo '<ul class="page-nav">';
+	foreach ( $items as $item ) {
+		$class = $item['class'] ? ' class="' . esc_attr( trim( $item['class'] ) ) . '"' : '';
+		printf(
+			'<li%s><a href="%s">%s</a></li>',
+			$class,
+			esc_url( $item['url'] ),
+			esc_html( $item['label'] )
+		);
+	}
+	echo '</ul>';
 }
 
 // ---------------------------------------------------------------------------

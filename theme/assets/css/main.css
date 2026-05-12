@@ -229,6 +229,64 @@ img { max-width: 100%; height: auto; }
 }
 
 /* =========================================================
+   Primary page navigation — tab strip below auth bar
+   ========================================================= */
+
+.site-bar__pages {
+  border-top: 1px solid var(--border-light, #e0cec8);
+  background: var(--surface, #fff);
+}
+
+.page-nav {
+  display: flex;
+  list-style: none;
+  margin: 0 auto;
+  padding: 0 20px;
+  max-width: 960px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.page-nav::-webkit-scrollbar { display: none; }
+
+.page-nav li { flex-shrink: 0; }
+
+.page-nav li a {
+  display: block;
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted, #5c3d37);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 130ms ease, border-color 130ms ease;
+  white-space: nowrap;
+}
+
+.page-nav li a:hover {
+  color: var(--text, #1a0d09);
+  text-decoration: none;
+}
+
+.page-nav li.current-menu-item a,
+.page-nav li.current_page_item a,
+.page-nav li.current-menu-ancestor a {
+  color: var(--brand, #c0391c);
+  border-bottom-color: var(--brand, #c0391c);
+}
+
+.home .page-nav .page-nav__home a,
+.blog .page-nav .page-nav__home a {
+  color: var(--brand, #c0391c);
+  border-bottom-color: var(--brand, #c0391c);
+}
+
+@media (max-width: 600px) {
+  .page-nav li a { font-size: 0.82rem; padding: 9px 12px; }
+}
+
+/* =========================================================
    /escribir/ — full-page editor
    ========================================================= */
 
