@@ -46,6 +46,15 @@
 			<?php endif; ?>
 		</nav>
 	</div>
+
+	<nav class="site-bar__pages" aria-label="Secciones">
+		<?php wp_nav_menu( [
+			'theme_location' => 'primary',
+			'container'      => false,
+			'menu_class'     => 'page-nav',
+			'fallback_cb'    => 'plataforma_default_page_nav',
+		] ); ?>
+	</nav>
 </header>
 
 <div class="page-shell">

@@ -3,7 +3,7 @@ Theme Name:  Plataforma
 Theme URI:   https://vielac.at
 Author:      Plataforma
 Description: Red social curada para Verein Plataforma.
-Version:     1.7.0
+Version:     1.8.0
 Text Domain: plataforma
 */
 
@@ -11,28 +11,31 @@ Text Domain: plataforma
   color-scheme: light;
 
   /* Brand */
-  --brand:        #c0391c;   /* Vienna Latina red */
-  --brand-dark:   #9a2a0f;   /* hover / pressed */
-  --brand-soft:   #fbe2db;   /* tint for chips & soft fills */
-  --brand-softer: #fdf1ed;   /* very light tint for backgrounds */
+  --brand:        #c0391c;
+  --brand-dark:   #9a2a0f;
+  --brand-soft:   #fbe2db;
+  --brand-softer: #fdf1ed;
 
   /* Surfaces */
-  --bg:           #faf6f3;   /* page background */
-  --surface:      #ffffff;   /* cards & panels */
-  --surface-soft: #f5ece6;   /* subtle alt panel */
-  --border:       #ead8cf;   /* hairline */
+  --bg:           #f8f3ef;
+  --surface:      #ffffff;
+  --surface-soft: #f2ebe6;
+  --border:       #c2a89f;
+  --border-light: #e0cec8;
 
   /* Ink */
-  --text:         #2a1a14;   /* primary text */
-  --muted:        #7a5a52;   /* secondary text */
-  --subtle:       #a89086;   /* tertiary text */
+  --text:         #1a0d09;
+  --muted:        #5c3d37;
+  --subtle:       #9a7870;
 
   /* System */
-  --shadow:       0 18px 40px rgba(80, 30, 20, 0.10);
-  --shadow-sm:    0 6px 16px rgba(80, 30, 20, 0.08);
-  --radius-xl:    20px;
-  --radius-lg:    14px;
-  --radius-md:    10px;
+  --shadow:    0 2px 16px rgba(60, 20, 10, 0.09);
+  --shadow-sm: 0 1px 6px  rgba(60, 20, 10, 0.06);
+  --shadow-lg: 0 8px 32px rgba(60, 20, 10, 0.13);
+  --radius-xl: 18px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 5px;
 
   /* Aliases for legacy rules */
   --accent:       var(--brand);
