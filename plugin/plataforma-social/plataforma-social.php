@@ -731,6 +731,35 @@ add_filter( 'template_include', function ( $template ) {
 	return $template;
 } );
 
+// URI-based fallback: if rewrite-rule cache is stale the query var won't be
+// set, so we catch the raw URI in template_redirect and serve directly.
+add_action( 'template_redirect', 'plataforma_route_uri_fallback', 1 );
+
+function plataforma_route_uri_fallback(): void {
+	// Primary path already handled by template_include — nothing to do.
+	if ( get_query_var( 'plataforma_ingresar' ) ||
+	     get_query_var( 'plataforma_tablero' )  ||
+	     get_query_var( 'plataforma_escribir' ) ) {
+		return;
+	}
+
+	$request = trim( (string) parse_url( $_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH ), '/' );
+	$map = [
+		'ingresar' => '/page-ingresar.php',
+		'tablero'  => '/page-tablero.php',
+		'escribir' => '/page-escribir.php',
+	];
+
+	if ( isset( $map[ $request ] ) ) {
+		$file = get_template_directory() . $map[ $request ];
+		if ( file_exists( $file ) ) {
+			status_header( 200 );
+			include $file;
+			exit;
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // AJAX: Profile info update (display name, email, bio)
 // ---------------------------------------------------------------------------
