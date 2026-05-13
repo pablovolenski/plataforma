@@ -27,7 +27,7 @@ function plataforma_activate(): void {
 	plataforma_create_default_categories();
 	plataforma_cleanup_old_roles();
 	plataforma_grant_notice_caps();
-	update_option( 'plataforma_db_version', '0' ); // force upgrade to run on next init
+	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 	flush_rewrite_rules( false );
 }
 
@@ -368,29 +368,36 @@ function plataforma_default_page_nav( array $args ): void {
 
 // ---------------------------------------------------------------------------
 // Like identifier: user ID for logged-in, hashed IP for visitors
+// (guarded: theme/inc/roles.php defines identical fallbacks when plugin is inactive)
 // ---------------------------------------------------------------------------
 
-function plataforma_get_liker_identifier(): string {
-	$user_id = get_current_user_id();
-	if ( $user_id ) {
-		return (string) $user_id;
+if ( ! function_exists( 'plataforma_get_liker_identifier' ) ) {
+	function plataforma_get_liker_identifier(): string {
+		$user_id = get_current_user_id();
+		if ( $user_id ) {
+			return (string) $user_id;
+		}
+		$ip = $_SERVER['REMOTE_ADDR'] ?? '';
+		return 'ip:' . hash_hmac( 'sha256', $ip, wp_salt( 'auth' ) );
 	}
-	$ip = $_SERVER['REMOTE_ADDR'] ?? '';
-	return 'ip:' . hash_hmac( 'sha256', $ip, wp_salt( 'auth' ) );
 }
 
-function plataforma_user_has_liked( int $post_id, $identifier = null ): bool {
-	$identifier = $identifier ?: plataforma_get_liker_identifier();
-	if ( ! $identifier ) {
-		return false;
+if ( ! function_exists( 'plataforma_user_has_liked' ) ) {
+	function plataforma_user_has_liked( int $post_id, $identifier = null ): bool {
+		$identifier = $identifier ?: plataforma_get_liker_identifier();
+		if ( ! $identifier ) {
+			return false;
+		}
+		$likes = get_post_meta( $post_id, '_plataforma_likes', true );
+		return is_array( $likes ) && in_array( (string) $identifier, $likes, true );
 	}
-	$likes = get_post_meta( $post_id, '_plataforma_likes', true );
-	return is_array( $likes ) && in_array( (string) $identifier, $likes, true );
 }
 
-function plataforma_like_count( int $post_id ): int {
-	$likes = get_post_meta( $post_id, '_plataforma_likes', true );
-	return is_array( $likes ) ? count( $likes ) : 0;
+if ( ! function_exists( 'plataforma_like_count' ) ) {
+	function plataforma_like_count( int $post_id ): int {
+		$likes = get_post_meta( $post_id, '_plataforma_likes', true );
+		return is_array( $likes ) ? count( $likes ) : 0;
+	}
 }
 
 // ---------------------------------------------------------------------------
