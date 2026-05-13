@@ -10,7 +10,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const PLATAFORMA_DB_VERSION = '1.7.0';
+if ( ! defined( 'PLATAFORMA_DB_VERSION' ) ) {
+	define( 'PLATAFORMA_DB_VERSION', '1.7.0' );
+}
 
 // Hide the frontend admin bar for all users — access WP admin via /wp-admin
 add_filter( 'show_admin_bar', '__return_false' );
@@ -23,14 +25,13 @@ register_activation_hook( __FILE__, 'plataforma_activate' );
 
 function plataforma_activate(): void {
 	plataforma_create_default_categories();
-	plataforma_create_default_pages();
 	plataforma_cleanup_old_roles();
 	plataforma_grant_notice_caps();
-	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
+	update_option( 'plataforma_db_version', '0' ); // force upgrade to run on next init
 	flush_rewrite_rules( false );
 }
 
-// Run migrations on init when the plugin updates
+// Run migrations on init when the plugin updates (also creates default pages)
 add_action( 'init', 'plataforma_maybe_upgrade', 5 );
 
 function plataforma_maybe_upgrade(): void {
