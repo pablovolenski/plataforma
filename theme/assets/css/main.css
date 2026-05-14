@@ -1789,3 +1789,133 @@ img { max-width: 100%; height: auto; }
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+
+/* ── Profile avatar widget ───────────────────────────────────────────────── */
+
+.profile-avatar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.profile-avatar__img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--brand-soft, #fbe2db);
+  flex-shrink: 0;
+}
+
+.profile-avatar__btn {
+  cursor: pointer;
+  display: inline-block;
+  padding: 8px 18px;
+  font-size: 0.88rem;
+}
+
+.profile-avatar__status {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--muted, #5c3d37);
+}
+
+/* ── /personas/ page ─────────────────────────────────────────────────────── */
+
+.personas-page {
+  padding: 0 0 80px;
+}
+
+.personas-page__inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.personas-page__header {
+  padding: 32px 0 20px;
+}
+
+.personas-page__title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text, #1a0d09);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.personas-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.personas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.persona-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 18px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-light, #e0cec8);
+  border-radius: var(--radius-xl, 18px);
+  box-shadow: var(--shadow-sm, 0 1px 6px rgba(60, 20, 10, 0.06));
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.persona-card:hover {
+  box-shadow: var(--shadow, 0 2px 16px rgba(60, 20, 10, 0.09));
+  transform: translateY(-2px);
+}
+
+.persona-card img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--brand-soft, #fbe2db);
+}
+
+.persona-card__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #1a0d09);
+  margin: 0;
+  display: block;
+}
+
+.persona-card__bio {
+  font-size: 0.88rem;
+  color: var(--muted, #5c3d37);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.persona-card__groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 600px) {
+  .personas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+
+  .personas-page__title {
+    font-size: 1.4rem;
+  }
+}
