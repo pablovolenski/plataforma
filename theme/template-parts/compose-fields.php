@@ -23,6 +23,18 @@ $cats = get_categories( [ 'hide_empty' => false, 'orderby' => 'name' ] );
 	</select>
 </label>
 
+<div id="event-fields" class="event-fields" hidden>
+	<label>
+		Cuándo
+		<input type="datetime-local" name="event_date" id="event-date">
+	</label>
+	<label>
+		Dónde
+		<input type="text" name="event_location" id="event-location"
+		       placeholder="Lugar del evento…" maxlength="200" autocomplete="off">
+	</label>
+</div>
+
 <label>
 	Título
 	<input

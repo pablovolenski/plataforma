@@ -513,6 +513,19 @@ function plataforma_ajax_submit_post(): void {
 		}
 	}
 
+	// Save event meta (date + location) when provided
+	$event_date_raw = sanitize_text_field( wp_unslash( $_POST['event_date']     ?? '' ) );
+	$event_location = sanitize_text_field( wp_unslash( $_POST['event_location'] ?? '' ) );
+	if ( $event_date_raw ) {
+		$ts = strtotime( $event_date_raw );
+		if ( $ts ) {
+			update_post_meta( $post_id, '_plataforma_event_date', date( 'Y-m-d H:i:s', $ts ) );
+		}
+	}
+	if ( $event_location ) {
+		update_post_meta( $post_id, '_plataforma_event_location', $event_location );
+	}
+
 	wp_send_json_success( [ 'redirect' => get_permalink( $post_id ) ] );
 }
 
@@ -720,9 +733,10 @@ function plataforma_ajax_link_preview(): void {
 function plataforma_get_avatar_url( int $user_id, int $size = 80 ): string {
 	$attach_id = (int) get_user_meta( $user_id, '_plataforma_avatar_id', true );
 	if ( $attach_id ) {
-		$url = wp_get_attachment_image_url( $attach_id, 'thumbnail' );
+		$url = wp_get_attachment_image_url( $attach_id, 'thumbnail' )
+			?: wp_get_attachment_url( $attach_id );
 		if ( $url ) {
-			return $url;
+			return (string) $url;
 		}
 	}
 	return (string) get_avatar_url( $user_id, [ 'size' => $size ] );
@@ -739,10 +753,10 @@ function plataforma_upload_avatar(): void {
 
 	$user_id = get_current_user_id();
 	if ( ! $user_id ) {
-		wp_send_json_error( [], 401 );
+		wp_send_json_error( [ 'message' => 'No autenticado.' ], 401 );
 	}
 
-	if ( empty( $_FILES['avatar'] ) ) {
+	if ( empty( $_FILES['avatar']['name'] ) ) {
 		wp_send_json_error( [ 'message' => 'No se recibió ningún archivo.' ], 400 );
 	}
 
@@ -750,18 +764,136 @@ function plataforma_upload_avatar(): void {
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	require_once ABSPATH . 'wp-admin/includes/media.php';
 
-	$attach_id = media_handle_upload( 'avatar', 0 );
+	$allowed_mimes = [
+		'jpg|jpeg|jpe' => 'image/jpeg',
+		'png'          => 'image/png',
+		'gif'          => 'image/gif',
+		'webp'         => 'image/webp',
+	];
+
+	$upload = wp_handle_upload( $_FILES['avatar'], [
+		'test_form' => false,
+		'mimes'     => $allowed_mimes,
+	] );
+
+	if ( isset( $upload['error'] ) ) {
+		wp_send_json_error( [ 'message' => $upload['error'] ], 500 );
+	}
+
+	$attach_id = wp_insert_attachment( [
+		'post_mime_type' => $upload['type'],
+		'post_title'     => sanitize_file_name( basename( $upload['file'] ) ),
+		'post_status'    => 'inherit',
+	], $upload['file'], 0 );
 
 	if ( is_wp_error( $attach_id ) ) {
 		wp_send_json_error( [ 'message' => $attach_id->get_error_message() ], 500 );
 	}
 
+	wp_update_attachment_metadata(
+		$attach_id,
+		wp_generate_attachment_metadata( $attach_id, $upload['file'] )
+	);
+
 	update_user_meta( $user_id, '_plataforma_avatar_id', $attach_id );
 
-	wp_send_json_success( [
-		'url' => wp_get_attachment_image_url( $attach_id, 'thumbnail' ),
-	] );
+	$url = wp_get_attachment_image_url( $attach_id, 'thumbnail' )
+		?: wp_get_attachment_url( $attach_id );
+
+	wp_send_json_success( [ 'url' => $url ] );
 }
+
+// ---------------------------------------------------------------------------
+// Event helpers
+// ---------------------------------------------------------------------------
+
+function plataforma_google_calendar_url( int $post_id ): string {
+	$title    = get_the_title( $post_id );
+	$excerpt  = wp_strip_all_tags( get_the_excerpt( $post_id ) );
+	$url      = get_permalink( $post_id );
+	$date_raw = (string) get_post_meta( $post_id, '_plataforma_event_date', true );
+	$location = (string) get_post_meta( $post_id, '_plataforma_event_location', true );
+
+	$ts_start = $date_raw ? strtotime( $date_raw ) : false;
+	if ( $ts_start ) {
+		$dt_start = date( 'Ymd\THis', $ts_start );
+		$dt_end   = date( 'Ymd\THis', $ts_start + 2 * HOUR_IN_SECONDS );
+	} else {
+		$dt_start = $dt_end = '';
+	}
+
+	$params = [
+		'action'   => 'TEMPLATE',
+		'text'     => $title,
+		'details'  => $excerpt ? $excerpt . "\n\n" . $url : $url,
+		'location' => $location,
+	];
+	if ( $dt_start ) {
+		$params['dates'] = $dt_start . '/' . $dt_end;
+	}
+
+	return 'https://calendar.google.com/calendar/render?' . http_build_query( $params );
+}
+
+function plataforma_event_ics_content( int $post_id ): string {
+	$title    = get_the_title( $post_id );
+	$excerpt  = wp_strip_all_tags( get_the_excerpt( $post_id ) );
+	$url      = (string) get_permalink( $post_id );
+	$date_raw = (string) get_post_meta( $post_id, '_plataforma_event_date', true );
+	$location = (string) get_post_meta( $post_id, '_plataforma_event_location', true );
+
+	$ts_start  = $date_raw ? strtotime( $date_raw ) : time();
+	$dt_start  = date( 'Ymd\THis', $ts_start );
+	$dt_end    = date( 'Ymd\THis', $ts_start + 2 * HOUR_IN_SECONDS );
+	$dt_stamp  = gmdate( 'Ymd\THis\Z' );
+	$uid       = 'plataforma-' . $post_id . '@' . (string) wp_parse_url( home_url(), PHP_URL_HOST );
+
+	$esc = static function ( string $s ): string {
+		return str_replace( [ '\\', ',', ';', "\n" ], [ '\\\\', '\\,', '\\;', '\\n' ], $s );
+	};
+
+	$lines = [
+		'BEGIN:VCALENDAR',
+		'VERSION:2.0',
+		'PRODID:-//Plataforma//EN',
+		'CALSCALE:GREGORIAN',
+		'BEGIN:VEVENT',
+		'UID:'       . $uid,
+		'DTSTAMP:'   . $dt_stamp,
+		'DTSTART:'   . $dt_start,
+		'DTEND:'     . $dt_end,
+		'SUMMARY:'   . $esc( $title ),
+		'DESCRIPTION:' . $esc( ( $excerpt ? $excerpt . ' ' : '' ) . $url ),
+		'URL:'       . $url,
+	];
+
+	if ( $location ) {
+		$lines[] = 'LOCATION:' . $esc( $location );
+	}
+
+	$lines[] = 'END:VEVENT';
+	$lines[] = 'END:VCALENDAR';
+
+	return implode( "\r\n", $lines ) . "\r\n";
+}
+
+// ICS download endpoint: /?plataforma_ical=POST_ID
+add_action( 'init', function () {
+	if ( ! isset( $_GET['plataforma_ical'] ) ) {
+		return;
+	}
+	$post_id = absint( $_GET['plataforma_ical'] );
+	if ( ! $post_id || get_post_status( $post_id ) !== 'publish' ) {
+		wp_die( 'Evento no encontrado.', 404 );
+	}
+	$slug = sanitize_file_name( get_post_field( 'post_name', $post_id ) ) ?: 'evento';
+	header( 'Content-Type: text/calendar; charset=utf-8' );
+	header( 'Content-Disposition: attachment; filename="' . $slug . '.ics"' );
+	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo plataforma_event_ics_content( $post_id );
+	exit;
+}, 20 );
 
 // ---------------------------------------------------------------------------
 // Virtual routes — /ingresar/, /tablero/, /escribir/, /personas/

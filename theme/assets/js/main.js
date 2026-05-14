@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProfileForm();
   initShare();
   initPersonasFilters();
+  initCalendarDropdowns();
 });
 
 // ---------------------------------------------------------------------------
@@ -197,6 +198,18 @@ function initComposeForm() {
   const notice = document.getElementById('compose-notice');
   if (!form) return;
 
+  // Show/hide event fields based on category selection
+  const categorySelect = form.querySelector('[name="post_category"]');
+  const eventFields    = form.querySelector('#event-fields') || document.getElementById('event-fields');
+  if (categorySelect && eventFields) {
+    const toggleEventFields = () => {
+      const selected = categorySelect.options[categorySelect.selectedIndex];
+      eventFields.hidden = selected?.dataset.slug !== 'eventos';
+    };
+    categorySelect.addEventListener('change', toggleEventFields);
+    toggleEventFields();
+  }
+
   const editorResult  = initEditorToolbar();
   const previewResult = initLinkPreview(editorResult?.editor);
 
@@ -220,6 +233,14 @@ function initComposeForm() {
       post_content:  form.querySelector('[name="post_content"]').value.trim(),
       post_category: form.querySelector('[name="post_category"]').value,
     };
+
+    // Include event fields when Eventos category is selected
+    if (eventFields && !eventFields.hidden) {
+      const evDate = form.querySelector('[name="event_date"]')?.value;
+      const evLoc  = form.querySelector('[name="event_location"]')?.value.trim();
+      if (evDate) bodyData.event_date     = evDate;
+      if (evLoc)  bodyData.event_location = evLoc;
+    }
 
     const preview = previewResult?.getPreview();
     if (preview) bodyData.link_preview = JSON.stringify(preview);
@@ -494,7 +515,7 @@ function initProfileForm() {
       if (status) status.textContent = 'Subiendo…';
       const fd = new FormData();
       fd.append('action',   'plataforma_upload_avatar');
-      fd.append('_wpnonce', profileForm.querySelector('[name="_wpnonce"]').value);
+      fd.append('_wpnonce', PlataformaData.profileNonce);
       fd.append('avatar',   file);
       try {
         const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body: fd });
@@ -574,6 +595,30 @@ function initProfileForm() {
       btn.disabled    = false;
       btn.textContent = orig;
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Event calendar dropdowns
+// ---------------------------------------------------------------------------
+
+function initCalendarDropdowns() {
+  document.querySelectorAll('.cal-dropdown__toggle').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu     = btn.nextElementSibling;
+      const expanded = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!expanded));
+      if (menu) menu.hidden = expanded;
+    });
+  });
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.cal-dropdown__toggle').forEach((btn) => {
+      const menu = btn.nextElementSibling;
+      btn.setAttribute('aria-expanded', 'false');
+      if (menu) menu.hidden = true;
+    });
   });
 }
 
