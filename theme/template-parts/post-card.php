@@ -44,6 +44,45 @@ $cat_name   = $cat ? $cat->name : '';
 
 	<p class="article-card__excerpt"><?php echo esc_html( get_the_excerpt() ); ?></p>
 
+	<?php if ( $cat_slug === 'eventos' ) :
+		$event_date     = (string) get_post_meta( $post_id, '_plataforma_event_date', true );
+		$event_location = (string) get_post_meta( $post_id, '_plataforma_event_location', true );
+		if ( $event_date || $event_location ) :
+	?>
+	<div class="event-meta-strip">
+		<?php if ( $event_date ) : ?>
+			<span class="event-meta-strip__item">
+				<span class="event-meta-strip__icon" aria-hidden="true">📅</span>
+				<?php echo esc_html( date_i18n( 'j \d\e F, H:i', strtotime( $event_date ) ) ); ?>
+			</span>
+		<?php endif; ?>
+		<?php if ( $event_location ) : ?>
+			<span class="event-meta-strip__item">
+				<span class="event-meta-strip__icon" aria-hidden="true">📍</span>
+				<?php echo esc_html( $event_location ); ?>
+			</span>
+		<?php endif; ?>
+	</div>
+	<div class="cal-dropdown">
+		<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
+			<span aria-hidden="true">🗓</span> Agregar al calendario
+		</button>
+		<div class="cal-dropdown__menu" hidden>
+			<?php if ( function_exists( 'plataforma_google_calendar_url' ) ) : ?>
+			<a class="cal-dropdown__item" href="<?php echo esc_url( plataforma_google_calendar_url( $post_id ) ); ?>" target="_blank" rel="noopener noreferrer">
+				Google Calendar
+			</a>
+			<?php endif; ?>
+			<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
+				iCal / Apple Calendar
+			</a>
+			<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
+				Outlook
+			</a>
+		</div>
+	</div>
+	<?php endif; endif; ?>
+
 	<?php
 	$lp = get_post_meta( $post_id, '_plataforma_link_preview', true );
 	if ( is_array( $lp ) && ! empty( $lp['title'] ) ) :
