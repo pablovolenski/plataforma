@@ -2242,6 +2242,7 @@ a.group-pill:hover {
 /* ── Compose form: event fields ──────────────────────────────────────────── */
 
 .event-fields[hidden] { display: none !important; }
+.cat-picker[hidden]   { display: none !important; }
 
 .event-fields {
   display: grid;
