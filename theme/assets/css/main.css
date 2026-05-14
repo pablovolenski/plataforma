@@ -243,14 +243,17 @@ img { max-width: 100%; height: auto; }
   margin: 0 auto;
   padding: 0 20px;
   max-width: 960px;
-  overflow-x: auto;
+  overflow: visible; /* must be visible so sub-menu dropdowns aren't clipped */
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 
 .page-nav::-webkit-scrollbar { display: none; }
 
-.page-nav li { flex-shrink: 0; }
+.page-nav li {
+  flex-shrink: 0;
+  position: relative; /* anchor for sub-menu */
+}
 
 .page-nav li a {
   display: block;
@@ -282,8 +285,83 @@ img { max-width: 100%; height: auto; }
   border-bottom-color: var(--brand, #c0391c);
 }
 
+/* Dropdown indicator for items that have children */
+.page-nav .menu-item-has-children > a::after {
+  content: ' ▾';
+  font-size: 0.68em;
+  opacity: 0.65;
+  letter-spacing: 0;
+}
+
+/* Sub-menu dropdown */
+.page-nav .sub-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  min-width: 190px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-light, #e0cec8);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow, 0 2px 16px rgba(60, 20, 10, 0.09));
+  padding: 6px 0;
+  z-index: 300;
+  list-style: none;
+  margin: 0;
+}
+
+.page-nav li:hover > .sub-menu,
+.page-nav li:focus-within > .sub-menu {
+  display: block;
+}
+
+.page-nav .sub-menu li a {
+  padding: 10px 20px;
+  border-bottom: none;
+  font-size: 0.87rem;
+  font-weight: 500;
+  color: var(--muted, #5c3d37);
+  white-space: nowrap;
+}
+
+.page-nav .sub-menu li a:hover {
+  background: var(--brand-softer, #fdf1ed);
+  color: var(--brand, #c0391c);
+  border-bottom: none;
+}
+
+/* First/last sub-menu items get rounded corners to match the container */
+.page-nav .sub-menu li:first-child a { border-radius: 10px 10px 0 0; }
+.page-nav .sub-menu li:last-child  a { border-radius: 0 0 10px 10px; }
+.page-nav .sub-menu li:only-child  a { border-radius: 10px; }
+
 @media (max-width: 600px) {
   .page-nav li a { font-size: 0.82rem; padding: 9px 12px; }
+  /* On mobile the nav scrolls horizontally — hide dropdowns to avoid clipping */
+  .page-nav .sub-menu { display: none !important; }
+}
+
+/* ── Category badges and group pills as links ────────────────────────────── */
+
+a.article-card__kind {
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.article-card__kind:hover {
+  background: var(--brand, #c0391c);
+  color: #fff;
+}
+
+a.group-pill {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 130ms ease, color 130ms ease;
+}
+
+a.group-pill:hover {
+  background: var(--brand, #c0391c);
+  color: #fff;
 }
 
 /* =========================================================

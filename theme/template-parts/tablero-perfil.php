@@ -5,15 +5,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$user        = wp_get_current_user();
-$description = (string) get_user_meta( $user->ID, 'description', true );
-$all_groups  = function_exists( 'plataforma_get_groups' ) ? plataforma_get_groups() : [];
-$user_groups = (array) ( get_user_meta( $user->ID, '_plataforma_groups', true ) ?: [] );
+$user         = wp_get_current_user();
+$description  = (string) get_user_meta( $user->ID, 'description', true );
+$all_groups   = function_exists( 'plataforma_get_groups' ) ? plataforma_get_groups() : [];
+$user_groups  = (array) ( get_user_meta( $user->ID, '_plataforma_groups', true ) ?: [] );
 
-$member_names = [];
+$member_groups = [];
 foreach ( $all_groups as $g ) {
 	if ( in_array( $g['id'], $user_groups, true ) ) {
-		$member_names[] = $g['name'];
+		$member_groups[] = $g;
 	}
 }
 ?>
@@ -70,10 +70,14 @@ foreach ( $all_groups as $g ) {
 	<div class="tablero-perfil__block tablero-perfil__groups">
 		<h2 class="tablero-perfil__section-title">Mis grupos</h2>
 
-		<?php if ( ! empty( $member_names ) ) : ?>
+		<?php if ( ! empty( $member_groups ) ) : ?>
 			<div class="group-pills">
-				<?php foreach ( $member_names as $name ) : ?>
-					<span class="group-pill"><?php echo esc_html( $name ); ?></span>
+				<?php foreach ( $member_groups as $g ) : ?>
+					<?php if ( ! empty( $g['url'] ) ) : ?>
+						<a class="group-pill" href="<?php echo esc_url( $g['url'] ); ?>"><?php echo esc_html( $g['name'] ); ?></a>
+					<?php else : ?>
+						<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
+					<?php endif; ?>
 				<?php endforeach; ?>
 			</div>
 		<?php else : ?>

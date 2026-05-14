@@ -13,6 +13,7 @@ $categories = get_the_category();
 $cat        = ! empty( $categories ) ? $categories[0] : null;
 $cat_slug   = $cat ? $cat->slug : '';
 $cat_name   = $cat ? $cat->name : '';
+$cat_url    = $cat ? (string) get_term_meta( $cat->term_id, '_plataforma_category_url', true ) : '';
 ?>
 <article
 	class="article-card"
@@ -29,7 +30,11 @@ $cat_name   = $cat ? $cat->name : '';
 			</a>
 			<div class="article-card__meta">
 				<?php if ( $cat_name ) : ?>
-					<span class="article-card__kind"><?php echo esc_html( $cat_name ); ?></span>
+					<?php if ( $cat_url ) : ?>
+						<a class="article-card__kind" href="<?php echo esc_url( $cat_url ); ?>"><?php echo esc_html( $cat_name ); ?></a>
+					<?php else : ?>
+						<span class="article-card__kind"><?php echo esc_html( $cat_name ); ?></span>
+					<?php endif; ?>
 				<?php endif; ?>
 				<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>">
 					<?php echo esc_html( get_the_date( 'j M Y, H:i' ) ); ?>
