@@ -18,6 +18,13 @@
 			</a>
 		<?php endif; ?>
 
+		<button class="site-bar__hamburger" id="nav-toggle"
+		        aria-label="Abrir navegación" aria-expanded="false" aria-controls="site-bar-pages" type="button">
+			<span class="hamburger-line"></span>
+			<span class="hamburger-line"></span>
+			<span class="hamburger-line"></span>
+		</button>
+
 		<nav class="site-bar__nav" aria-label="Cuenta">
 			<?php if ( is_user_logged_in() ) : ?>
 				<a class="site-bar__link" href="<?php echo esc_url( home_url( '/tablero/' ) ); ?>">Mi Espacio</a>
@@ -47,7 +54,7 @@
 		</nav>
 	</div>
 
-	<nav class="site-bar__pages" aria-label="Secciones">
+	<nav class="site-bar__pages" id="site-bar-pages" aria-label="Secciones">
 		<?php wp_nav_menu( [
 			'theme_location' => 'primary',
 			'container'      => false,
