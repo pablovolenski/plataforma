@@ -35,6 +35,22 @@ $cats = get_categories( [ 'hide_empty' => false, 'orderby' => 'name' ] );
 	</label>
 </div>
 
+<div class="cover-upload">
+	<div class="cover-upload__preview" id="cover-preview" hidden></div>
+	<div class="cover-upload__controls">
+		<label class="btn-ghost cover-upload__btn" for="cover-image-input">
+			<span aria-hidden="true">🖼</span>
+			<span class="cover-upload__label-text">Añadir imagen de portada</span>
+			<input type="file" id="cover-image-input"
+			       accept="image/jpeg,image/png,image/gif,image/webp" hidden>
+		</label>
+		<button type="button" class="cover-upload__remove" id="cover-remove" hidden>
+			Quitar
+		</button>
+	</div>
+	<input type="hidden" name="cover_image_id" id="cover-image-id" value="">
+</div>
+
 <label>
 	Título
 	<input

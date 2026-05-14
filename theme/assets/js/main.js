@@ -210,6 +210,9 @@ function initComposeForm() {
     toggleEventFields();
   }
 
+  // Cover image upload (featured image)
+  initCoverImageUpload(form);
+
   const editorResult  = initEditorToolbar();
   const previewResult = initLinkPreview(editorResult?.editor);
 
@@ -242,6 +245,10 @@ function initComposeForm() {
       if (evLoc)  bodyData.event_location = evLoc;
     }
 
+    // Include cover image attachment ID if uploaded
+    const coverId = form.querySelector('[name="cover_image_id"]')?.value;
+    if (coverId) bodyData.cover_image_id = coverId;
+
     const preview = previewResult?.getPreview();
     if (preview) bodyData.link_preview = JSON.stringify(preview);
 
@@ -264,6 +271,65 @@ function initComposeForm() {
       submitBtn.textContent = original;
     }
   });
+}
+
+function initCoverImageUpload(form) {
+  const input    = form.querySelector('#cover-image-input');
+  const idField  = form.querySelector('#cover-image-id');
+  const preview  = form.querySelector('#cover-preview');
+  const removeBtn = form.querySelector('#cover-remove');
+  const labelText = form.querySelector('.cover-upload__label-text');
+  if (!input || !idField) return;
+
+  const showPreview = (url) => {
+    if (preview) {
+      preview.style.backgroundImage = `url(${url})`;
+      preview.hidden = false;
+    }
+    if (labelText) labelText.textContent = 'Cambiar imagen';
+    if (removeBtn) removeBtn.hidden = false;
+  };
+
+  const clearPreview = () => {
+    idField.value = '';
+    if (preview) {
+      preview.style.backgroundImage = '';
+      preview.hidden = true;
+    }
+    if (labelText) labelText.textContent = 'Añadir imagen de portada';
+    if (removeBtn) removeBtn.hidden = true;
+  };
+
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file || typeof PlataformaData === 'undefined') return;
+
+    if (labelText) labelText.textContent = 'Subiendo…';
+
+    const fd = new FormData();
+    fd.append('action',   'plataforma_upload_image');
+    fd.append('_wpnonce', PlataformaData.postNonce);
+    fd.append('file',     file);
+
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success && data.data?.url) {
+        idField.value = data.data.id || '';
+        showPreview(data.data.url);
+      } else {
+        if (labelText) labelText.textContent = 'Error — reintentar';
+      }
+    } catch {
+      if (labelText) labelText.textContent = 'Error de red';
+    } finally {
+      input.value = '';
+    }
+  });
+
+  if (removeBtn) {
+    removeBtn.addEventListener('click', clearPreview);
+  }
 }
 
 function initEditorToolbar() {

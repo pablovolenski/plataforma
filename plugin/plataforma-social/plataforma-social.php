@@ -566,6 +566,12 @@ function plataforma_ajax_submit_post(): void {
 		}
 	}
 
+	// Featured (cover) image — set as post thumbnail
+	$cover_id = absint( $_POST['cover_image_id'] ?? 0 );
+	if ( $cover_id && get_post( $cover_id ) ) {
+		set_post_thumbnail( $post_id, $cover_id );
+	}
+
 	// Save event meta (date + location) when provided
 	$event_date_raw = sanitize_text_field( wp_unslash( $_POST['event_date']     ?? '' ) );
 	$event_location = sanitize_text_field( wp_unslash( $_POST['event_location'] ?? '' ) );
