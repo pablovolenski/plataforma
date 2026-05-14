@@ -117,24 +117,6 @@ if ( has_post_thumbnail( $post_id ) ) {
 		$atcb_json = wp_json_encode( $atcb_config );
 	}
 	?>
-	<?php if ( $is_event && $event_date ) : ?>
-		<button type="button" class="atcb-trigger" data-atcb="<?php echo esc_attr( $atcb_json ); ?>">
-			<svg class="cal-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-				<rect x="2" y="4" width="16" height="14" rx="2.5" stroke="#ffffff" stroke-width="1.6"/>
-				<path d="M2 9h16" stroke="#ffffff" stroke-width="1.6"/>
-				<path d="M6.5 2v4M13.5 2v4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
-				<circle cx="6"  cy="12.5" r="0.8" fill="#ffffff"/>
-				<circle cx="9"  cy="12.5" r="0.8" fill="#ffffff"/>
-				<circle cx="12" cy="12.5" r="0.8" fill="#ffffff"/>
-				<circle cx="6"  cy="15.5" r="0.8" fill="#ffffff"/>
-				<circle cx="9"  cy="15.5" r="0.8" fill="#ffffff"/>
-				<circle cx="12" cy="15.5" r="0.8" fill="#ffffff"/>
-				<circle cx="19" cy="19"   r="4"   stroke="#ffffff" stroke-width="1.6"/>
-				<path d="M19 16.8v4.4M16.8 19h4.4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
-			</svg>
-			<span>Añadir al calendario</span>
-		</button>
-	<?php endif; ?>
 
 	<?php if ( ! $is_event ) :
 		$lp = get_post_meta( $post_id, '_plataforma_link_preview', true );
@@ -172,6 +154,25 @@ if ( has_post_thumbnail( $post_id ) ) {
 		</button>
 
 		<?php get_template_part( 'template-parts/share-bar', null, [ 'compact' => true ] ); ?>
+
+		<?php if ( $is_event && $event_date ) : ?>
+			<?php // atcb-trigger button is already rendered above with the full JSON config — reuse $atcb_json ?>
+			<button type="button" class="atcb-trigger" data-atcb="<?php echo esc_attr( $atcb_json ); ?>" aria-label="Añadir al calendario">
+				<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+					<rect x="2" y="4" width="16" height="14" rx="2.5" stroke="#ffffff" stroke-width="1.6"/>
+					<path d="M2 9h16" stroke="#ffffff" stroke-width="1.6"/>
+					<path d="M6.5 2v4M13.5 2v4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+					<circle cx="6"  cy="12.5" r="0.8" fill="#ffffff"/>
+					<circle cx="9"  cy="12.5" r="0.8" fill="#ffffff"/>
+					<circle cx="12" cy="12.5" r="0.8" fill="#ffffff"/>
+					<circle cx="6"  cy="15.5" r="0.8" fill="#ffffff"/>
+					<circle cx="9"  cy="15.5" r="0.8" fill="#ffffff"/>
+					<circle cx="12" cy="15.5" r="0.8" fill="#ffffff"/>
+					<circle cx="19" cy="19"   r="4"   stroke="#ffffff" stroke-width="1.6"/>
+					<path d="M19 16.8v4.4M16.8 19h4.4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+				</svg>
+			</button>
+		<?php endif; ?>
 
 		<a class="article-card__read-more" href="<?php the_permalink(); ?>">
 			Leer más →
