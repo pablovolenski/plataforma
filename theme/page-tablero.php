@@ -34,6 +34,10 @@ get_header();
 			Publicar
 		</button>
 		<button class="tablero__tab" role="tab"
+		        data-tab="mis-publicaciones" aria-controls="tab-mis-publicaciones" aria-selected="false">
+			Mis publicaciones
+		</button>
+		<button class="tablero__tab" role="tab"
 		        data-tab="perfil" aria-controls="tab-perfil" aria-selected="false">
 			Mi Perfil
 		</button>
@@ -45,6 +49,10 @@ get_header();
 
 	<div id="tab-publicar" class="tablero__panel" role="tabpanel" hidden>
 		<?php get_template_part( 'template-parts/tablero-publicar' ); ?>
+	</div>
+
+	<div id="tab-mis-publicaciones" class="tablero__panel" role="tabpanel" hidden>
+		<?php get_template_part( 'template-parts/tablero-mis-publicaciones' ); ?>
 	</div>
 
 	<div id="tab-perfil" class="tablero__panel" role="tabpanel" hidden>

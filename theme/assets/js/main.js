@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initShare();
   initPersonasFilters();
   initCalendarDropdowns();
+  initMisPublicaciones();
 });
 
 // ---------------------------------------------------------------------------
@@ -279,18 +280,22 @@ function initComposeForm() {
 }
 
 function initCoverImageUpload(form) {
-  const input    = form.querySelector('#cover-image-input');
-  const idField  = form.querySelector('#cover-image-id');
-  const preview  = form.querySelector('#cover-preview');
-  const removeBtn = form.querySelector('#cover-remove');
-  const labelText = form.querySelector('.cover-upload__label-text');
+  const root        = form.querySelector('#cover-upload') || form.querySelector('.cover-upload');
+  const input       = form.querySelector('#cover-image-input');
+  const idField     = form.querySelector('#cover-image-id');
+  const preview     = form.querySelector('#cover-preview');
+  const placeholder = form.querySelector('#cover-placeholder');
+  const removeBtn   = form.querySelector('#cover-remove');
+  const labelText   = form.querySelector('.cover-upload__label-text');
   if (!input || !idField) return;
 
   const showPreview = (url) => {
     if (preview) {
-      preview.style.backgroundImage = `url(${url})`;
+      preview.style.backgroundImage = `url('${url}')`;
       preview.hidden = false;
     }
+    if (placeholder) placeholder.hidden = true;
+    if (root) root.classList.add('cover-upload--has-image');
     if (labelText) labelText.textContent = 'Cambiar imagen';
     if (removeBtn) removeBtn.hidden = false;
   };
@@ -301,15 +306,20 @@ function initCoverImageUpload(form) {
       preview.style.backgroundImage = '';
       preview.hidden = true;
     }
-    if (labelText) labelText.textContent = 'Añadir imagen de portada';
+    if (placeholder) placeholder.hidden = false;
+    if (root) root.classList.remove('cover-upload--has-image');
+    if (labelText) labelText.textContent = 'Elegir imagen';
     if (removeBtn) removeBtn.hidden = true;
   };
 
-  input.addEventListener('change', async () => {
-    const file = input.files[0];
+  async function uploadFile(file) {
     if (!file || typeof PlataformaData === 'undefined') return;
-
+    if (!file.type.startsWith('image/')) {
+      if (labelText) labelText.textContent = 'Solo imágenes';
+      return;
+    }
     if (labelText) labelText.textContent = 'Subiendo…';
+    if (root) root.classList.add('cover-upload--uploading');
 
     const fd = new FormData();
     fd.append('action',   'plataforma_upload_image');
@@ -329,11 +339,36 @@ function initCoverImageUpload(form) {
       if (labelText) labelText.textContent = 'Error de red';
     } finally {
       input.value = '';
+      if (root) root.classList.remove('cover-upload--uploading');
     }
-  });
+  }
 
-  if (removeBtn) {
-    removeBtn.addEventListener('click', clearPreview);
+  input.addEventListener('change', () => uploadFile(input.files[0]));
+  if (removeBtn) removeBtn.addEventListener('click', clearPreview);
+
+  // Drag & drop on the entire upload area
+  if (root) {
+    ['dragenter', 'dragover'].forEach((evt) => {
+      root.addEventListener(evt, (e) => {
+        e.preventDefault();
+        root.classList.add('cover-upload--dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach((evt) => {
+      root.addEventListener(evt, (e) => {
+        e.preventDefault();
+        if (evt === 'dragleave' && root.contains(e.relatedTarget)) return;
+        root.classList.remove('cover-upload--dragover');
+      });
+    });
+    root.addEventListener('drop', (e) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (file) uploadFile(file);
+    });
+    // Click anywhere on the placeholder area triggers the file picker
+    if (placeholder) {
+      placeholder.addEventListener('click', () => input.click());
+    }
   }
 }
 
@@ -690,6 +725,49 @@ function initCalendarDropdowns() {
       btn.setAttribute('aria-expanded', 'false');
       if (menu) menu.hidden = true;
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mis publicaciones — delete own posts via AJAX
+// ---------------------------------------------------------------------------
+
+function initMisPublicaciones() {
+  const list   = document.querySelector('.mis-pubs__list');
+  const notice = document.getElementById('mis-pubs-notice');
+  if (!list) return;
+
+  list.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.mis-pubs__delete');
+    if (!btn) return;
+    if (typeof PlataformaData === 'undefined') return;
+
+    const postId = btn.dataset.postId;
+    if (!postId) return;
+    if (!confirm('¿Eliminar esta publicación? Esta acción no se puede deshacer.')) return;
+
+    btn.disabled = true;
+    const item = btn.closest('.mis-pubs__item');
+    const body = new URLSearchParams({
+      action:   'plataforma_delete_post',
+      _wpnonce: PlataformaData.postNonce,
+      post_id:  postId,
+    });
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      const data = await res.json();
+      if (data.success) {
+        if (item) item.remove();
+        showNotice(notice, 'Publicación eliminada.', 'success');
+        if (!list.querySelector('.mis-pubs__item')) list.remove();
+      } else {
+        showNotice(notice, data.data?.message || 'Error al eliminar.', 'error');
+        btn.disabled = false;
+      }
+    } catch {
+      showNotice(notice, 'Error de red.', 'error');
+      btn.disabled = false;
+    }
   });
 }
 
