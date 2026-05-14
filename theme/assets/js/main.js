@@ -72,11 +72,15 @@ function initComposerPanel() {
   const panel = document.getElementById('composer-panel');
   if (!panel) return;
 
-  const categorySelect = panel.querySelector('[name="post_category"]');
-  const titleEl        = document.getElementById('composer-panel-title');
+  const titleEl = document.getElementById('composer-panel-title');
 
   function openPanel(presetCatId) {
-    if (presetCatId && categorySelect) categorySelect.value = presetCatId;
+    if (presetCatId) {
+      // Check the matching checkbox; uncheck all others for the event preset
+      panel.querySelectorAll('[name="post_categories[]"]').forEach((cb) => {
+        if (cb.value === String(presetCatId)) cb.checked = true;
+      });
+    }
     if (titleEl) titleEl.textContent = presetCatId ? 'Nuevo evento' : 'Nueva publicación';
 
     panel.classList.add('is-open');
@@ -206,15 +210,15 @@ function initComposeForm() {
   const notice = document.getElementById('compose-notice');
   if (!form) return;
 
-  // Show/hide event fields based on category selection
-  const categorySelect = form.querySelector('[name="post_category"]');
-  const eventFields    = form.querySelector('#event-fields') || document.getElementById('event-fields');
-  if (categorySelect && eventFields) {
+  // Show/hide event fields based on category checkboxes
+  const catCheckboxes = form.querySelectorAll('[name="post_categories[]"]');
+  const eventFields   = form.querySelector('#event-fields') || document.getElementById('event-fields');
+  if (catCheckboxes.length && eventFields) {
     const toggleEventFields = () => {
-      const selected = categorySelect.options[categorySelect.selectedIndex];
-      eventFields.hidden = selected?.dataset.slug !== 'eventos';
+      const hasEventos = [...catCheckboxes].some((cb) => cb.checked && cb.dataset.slug === 'eventos');
+      eventFields.hidden = !hasEventos;
     };
-    categorySelect.addEventListener('change', toggleEventFields);
+    catCheckboxes.forEach((cb) => cb.addEventListener('change', toggleEventFields));
     toggleEventFields();
   }
 
@@ -239,33 +243,32 @@ function initComposeForm() {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Publicando…';
 
-    const bodyData = {
-      action:        'plataforma_submit_post',
-      _wpnonce:      PlataformaData.postNonce,
-      post_title:    form.querySelector('[name="post_title"]').value.trim(),
-      post_excerpt:  form.querySelector('[name="post_excerpt"]')?.value.trim() ?? '',
-      post_content:  form.querySelector('[name="post_content"]').value.trim(),
-      post_category: form.querySelector('[name="post_category"]').value,
-    };
+    const checkedCats = [...form.querySelectorAll('[name="post_categories[]"]:checked')].map((cb) => cb.value);
+
+    const body = new URLSearchParams();
+    body.append('action',       'plataforma_submit_post');
+    body.append('_wpnonce',     PlataformaData.postNonce);
+    body.append('post_title',   form.querySelector('[name="post_title"]').value.trim());
+    body.append('post_excerpt', form.querySelector('[name="post_excerpt"]')?.value.trim() ?? '');
+    body.append('post_content', form.querySelector('[name="post_content"]').value.trim());
+    checkedCats.forEach((id) => body.append('post_categories[]', id));
 
     // Include event fields when Eventos category is selected
     if (eventFields && !eventFields.hidden) {
       const evDateVal = form.querySelector('[name="event_date_date"]')?.value;
       const evTimeVal = form.querySelector('[name="event_date_time"]')?.value;
       const evLoc     = form.querySelector('[name="event_location"]')?.value.trim();
-      if (evDateVal) bodyData.event_date_date = evDateVal;
-      if (evTimeVal) bodyData.event_date_time = evTimeVal;
-      if (evLoc)     bodyData.event_location  = evLoc;
+      if (evDateVal) body.append('event_date_date', evDateVal);
+      if (evTimeVal) body.append('event_date_time', evTimeVal);
+      if (evLoc)     body.append('event_location',  evLoc);
     }
 
     // Include cover image attachment ID if uploaded
     const coverId = form.querySelector('[name="cover_image_id"]')?.value;
-    if (coverId) bodyData.cover_image_id = coverId;
+    if (coverId) body.append('cover_image_id', coverId);
 
     const preview = previewResult?.getPreview();
-    if (preview) bodyData.link_preview = JSON.stringify(preview);
-
-    const body = new URLSearchParams(bodyData);
+    if (preview) body.append('link_preview', JSON.stringify(preview));
 
     try {
       const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });

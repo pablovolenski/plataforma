@@ -30,19 +30,21 @@ $edit_ev_t   = $edit_evdate ? date( 'H:i',   strtotime( $edit_evdate ) ) : '';
 	<input type="hidden" name="post_id" value="<?php echo esc_attr( $edit_id ); ?>">
 <?php endif; ?>
 
-<label>
-	Categoría
-	<select name="post_category" required>
-		<option value="">— Elegir —</option>
-		<?php foreach ( $cats as $cat ) : ?>
-			<option value="<?php echo esc_attr( $cat->term_id ); ?>"
-			        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-			        <?php selected( $edit_cat, $cat->term_id ); ?>>
-				<?php echo esc_html( $cat->name ); ?>
-			</option>
-		<?php endforeach; ?>
-	</select>
-</label>
+<fieldset class="cat-picker">
+	<legend>Categorías</legend>
+	<?php foreach ( $cats as $cat ) : ?>
+		<label class="cat-picker__item">
+			<input
+				type="checkbox"
+				name="post_categories[]"
+				value="<?php echo esc_attr( $cat->term_id ); ?>"
+				data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+				<?php checked( in_array( $cat->term_id, (array) $edit_cats, false ), true ); ?>
+			>
+			<?php echo esc_html( $cat->name ); ?>
+		</label>
+	<?php endforeach; ?>
+</fieldset>
 
 <div id="event-fields" class="event-fields" hidden>
 	<div class="event-fields__datetime">

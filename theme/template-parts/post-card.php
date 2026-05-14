@@ -14,7 +14,16 @@ $cat        = ! empty( $categories ) ? $categories[0] : null;
 $cat_slug   = $cat ? $cat->slug : '';
 $cat_name   = $cat ? $cat->name : '';
 $cat_url    = $cat ? (string) get_term_meta( $cat->term_id, '_plataforma_category_url', true ) : '';
-$is_event   = ( $cat_slug === 'eventos' );
+$is_event   = in_array( 'eventos', array_column( $categories, 'slug' ), true );
+if ( $is_event && $cat_slug !== 'eventos' ) {
+	foreach ( $categories as $_c ) {
+		if ( $_c->slug === 'eventos' ) {
+			$cat = $_c; $cat_slug = $_c->slug; $cat_name = $_c->name;
+			$cat_url = (string) get_term_meta( $_c->term_id, '_plataforma_category_url', true );
+			break;
+		}
+	}
+}
 
 $event_date     = $is_event ? (string) get_post_meta( $post_id, '_plataforma_event_date', true )     : '';
 $event_location = $is_event ? (string) get_post_meta( $post_id, '_plataforma_event_location', true ) : '';

@@ -43,7 +43,16 @@ foreach ( $cats as $cat ) {
 			aria-expanded="false"
 			aria-controls="composer-panel"
 		>
-			<span class="composer-bar__event-icon" aria-hidden="true">📅</span>
+			<svg class="cal-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
+				<rect x="2" y="4" width="20" height="17" rx="2.5" stroke="#ffffff" stroke-width="1.6"/>
+				<path d="M2 9h20" stroke="#ffffff" stroke-width="1.6"/>
+				<path d="M7 2v4M17 2v4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+				<circle cx="8"  cy="13.5" r="0.9" fill="#ffffff"/>
+				<circle cx="12" cy="13.5" r="0.9" fill="#ffffff"/>
+				<circle cx="16" cy="13.5" r="0.9" fill="#ffffff"/>
+				<circle cx="8"  cy="17.5" r="0.9" fill="#ffffff"/>
+				<circle cx="12" cy="17.5" r="0.9" fill="#ffffff"/>
+			</svg>
 			<span>Añadir evento</span>
 		</button>
 	<?php endif; ?>
