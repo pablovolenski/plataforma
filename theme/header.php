@@ -20,6 +20,10 @@
 
 		<nav class="site-bar__nav" aria-label="Cuenta">
 			<?php if ( is_user_logged_in() ) : ?>
+				<span class="site-bar__user">
+					Conectado como <strong><?php echo esc_html( wp_get_current_user()->display_name ); ?></strong>
+				</span>
+
 				<a class="site-bar__link" href="<?php echo esc_url( home_url( '/tablero/' ) ); ?>">Mi Espacio</a>
 
 				<?php if ( current_user_can( 'publish_posts' ) ) : ?>
@@ -29,10 +33,6 @@
 						<span class="site-bar__write-label">Escribir</span>
 					</a>
 				<?php endif; ?>
-
-				<span class="site-bar__user" title="<?php echo esc_attr( wp_get_current_user()->display_name ); ?>">
-					<?php echo esc_html( wp_get_current_user()->display_name ); ?>
-				</span>
 
 				<a class="site-bar__btn site-bar__btn--ghost"
 				   href="<?php echo esc_url( wp_logout_url( home_url( '/' ) ) ); ?>">

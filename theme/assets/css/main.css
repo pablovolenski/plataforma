@@ -212,15 +212,18 @@ img { max-width: 100%; height: auto; }
   background: var(--brand-softer, #fdf1ed);
 }
 
-/* Logged-in user name — subtle, truncated */
+/* Logged-in user label — "Conectado como Name" */
 .site-bar__user {
-  font-size: 0.84rem;
-  color: var(--subtle);
-  font-weight: 500;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  color: var(--subtle, #9a7870);
+  font-weight: 400;
   white-space: nowrap;
+  padding-right: 4px;
+  border-right: 1px solid var(--border-light, #e0cec8);
+}
+.site-bar__user strong {
+  font-weight: 700;
+  color: var(--muted, #5c3d37);
 }
 
 /* Hamburger — hidden on desktop, visible on mobile */
