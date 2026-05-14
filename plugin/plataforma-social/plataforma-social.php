@@ -561,19 +561,34 @@ function plataforma_ajax_submit_post(): void {
 	$excerpt  = sanitize_text_field( $_POST['post_excerpt'] ?? '' );
 	$content  = wp_kses_post( $_POST['post_content']        ?? '' );
 	$category = absint( $_POST['post_category']             ?? 0 );
+	$edit_id  = absint( $_POST['post_id']                   ?? 0 );
 
 	if ( ! $title || ! $content ) {
 		wp_send_json_error( [ 'message' => 'Título y cuerpo son obligatorios.' ], 422 );
 	}
 
-	$post_id = wp_insert_post( [
-		'post_title'    => $title,
-		'post_excerpt'  => $excerpt,
-		'post_content'  => $content,
-		'post_status'   => 'publish',
-		'post_author'   => get_current_user_id(),
-		'post_category' => $category ? [ $category ] : [],
-	], true );
+	if ( $edit_id ) {
+		$existing = get_post( $edit_id );
+		if ( ! $existing || (int) $existing->post_author !== get_current_user_id() ) {
+			wp_send_json_error( [ 'message' => 'No puedes editar esta publicación.' ], 403 );
+		}
+		$post_id = wp_update_post( [
+			'ID'            => $edit_id,
+			'post_title'    => $title,
+			'post_excerpt'  => $excerpt,
+			'post_content'  => $content,
+			'post_category' => $category ? [ $category ] : [],
+		], true );
+	} else {
+		$post_id = wp_insert_post( [
+			'post_title'    => $title,
+			'post_excerpt'  => $excerpt,
+			'post_content'  => $content,
+			'post_status'   => 'publish',
+			'post_author'   => get_current_user_id(),
+			'post_category' => $category ? [ $category ] : [],
+		], true );
+	}
 
 	if ( is_wp_error( $post_id ) ) {
 		wp_send_json_error( [ 'message' => $post_id->get_error_message() ], 500 );
@@ -623,6 +638,29 @@ function plataforma_ajax_submit_post(): void {
 	}
 
 	wp_send_json_success( [ 'redirect' => get_permalink( $post_id ) ] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX: Delete own post
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_delete_post', 'plataforma_ajax_delete_post' );
+
+function plataforma_ajax_delete_post(): void {
+	check_ajax_referer( 'plataforma_post_nonce', '_wpnonce' );
+
+	$post_id = absint( $_POST['post_id'] ?? 0 );
+	if ( ! $post_id ) {
+		wp_send_json_error( [ 'message' => 'Publicación no válida.' ], 400 );
+	}
+	$post = get_post( $post_id );
+	if ( ! $post || (int) $post->post_author !== get_current_user_id() ) {
+		wp_send_json_error( [ 'message' => 'No puedes eliminar esta publicación.' ], 403 );
+	}
+	if ( ! wp_trash_post( $post_id ) ) {
+		wp_send_json_error( [ 'message' => 'Error al eliminar.' ], 500 );
+	}
+	wp_send_json_success( [ 'post_id' => $post_id ] );
 }
 
 function plataforma_ajax_post_nopriv(): void {
@@ -849,6 +887,42 @@ function plataforma_get_avatar_url( int $user_id, int $size = 80 ): string {
 		}
 	}
 	return (string) get_avatar_url( $user_id, [ 'size' => $size ] );
+}
+
+// Make WordPress's built-in get_avatar() / get_avatar_url() use the custom upload.
+// This is what makes the new avatar appear everywhere (feed, single post, comments…).
+add_filter( 'pre_get_avatar_data', 'plataforma_filter_avatar_data', 10, 2 );
+
+function plataforma_filter_avatar_data( array $args, $id_or_email ): array {
+	$user_id = 0;
+	if ( is_numeric( $id_or_email ) ) {
+		$user_id = (int) $id_or_email;
+	} elseif ( $id_or_email instanceof WP_User ) {
+		$user_id = (int) $id_or_email->ID;
+	} elseif ( $id_or_email instanceof WP_Post ) {
+		$user_id = (int) $id_or_email->post_author;
+	} elseif ( $id_or_email instanceof WP_Comment ) {
+		$user_id = (int) $id_or_email->user_id;
+	} elseif ( is_string( $id_or_email ) && is_email( $id_or_email ) ) {
+		$user = get_user_by( 'email', $id_or_email );
+		if ( $user ) {
+			$user_id = (int) $user->ID;
+		}
+	}
+	if ( ! $user_id ) {
+		return $args;
+	}
+	$attach_id = (int) get_user_meta( $user_id, '_plataforma_avatar_id', true );
+	if ( ! $attach_id ) {
+		return $args;
+	}
+	$url = wp_get_attachment_image_url( $attach_id, 'thumbnail' )
+		?: wp_get_attachment_url( $attach_id );
+	if ( $url ) {
+		$args['url']          = $url;
+		$args['found_avatar'] = true;
+	}
+	return $args;
 }
 
 // ---------------------------------------------------------------------------

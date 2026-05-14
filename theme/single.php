@@ -37,6 +37,13 @@ $cat_name   = $cat ? $cat->name : '';
 					<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>">
 						<?php echo esc_html( get_the_date( 'j M Y, H:i' ) ); ?>
 					</time>
+					<?php if ( get_the_modified_time( 'U' ) - get_the_time( 'U' ) > 60 ) : ?>
+						<span class="article-card__edited">
+							· Editado <time datetime="<?php echo esc_attr( get_the_modified_date( 'c' ) ); ?>">
+								<?php echo esc_html( get_the_modified_date( 'j M Y, H:i' ) ); ?>
+							</time>
+						</span>
+					<?php endif; ?>
 				</div>
 			</div>
 		</header>
