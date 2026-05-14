@@ -14,12 +14,30 @@ $cat        = ! empty( $categories ) ? $categories[0] : null;
 $cat_slug   = $cat ? $cat->slug : '';
 $cat_name   = $cat ? $cat->name : '';
 $cat_url    = $cat ? (string) get_term_meta( $cat->term_id, '_plataforma_category_url', true ) : '';
+$is_event   = ( $cat_slug === 'eventos' );
+
+$event_date     = $is_event ? (string) get_post_meta( $post_id, '_plataforma_event_date', true )     : '';
+$event_location = $is_event ? (string) get_post_meta( $post_id, '_plataforma_event_location', true ) : '';
+
+$card_classes = [ 'article-card' ];
+if ( $is_event ) {
+	$card_classes[] = 'article-card--event';
+}
+if ( has_post_thumbnail( $post_id ) ) {
+	$card_classes[] = 'article-card--has-cover';
+}
 ?>
 <article
-	class="article-card"
+	class="<?php echo esc_attr( implode( ' ', $card_classes ) ); ?>"
 	data-kind="<?php echo esc_attr( $cat_slug ); ?>"
 	id="post-<?php the_ID(); ?>"
 >
+	<?php if ( has_post_thumbnail( $post_id ) ) : ?>
+		<a class="article-card__cover-link" href="<?php the_permalink(); ?>" tabindex="-1" aria-hidden="true">
+			<?php the_post_thumbnail( $is_event ? 'medium' : 'large', [ 'class' => 'article-card__cover' ] ); ?>
+		</a>
+	<?php endif; ?>
+
 	<header class="article-card__head">
 		<a class="article-card__avatar-link" href="<?php echo esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ); ?>" aria-hidden="true" tabindex="-1">
 			<?php echo get_avatar( get_the_author_meta( 'ID' ), 40, '', '', [ 'class' => 'article-card__avatar' ] ); ?>
@@ -47,67 +65,69 @@ $cat_url    = $cat ? (string) get_term_meta( $cat->term_id, '_plataforma_categor
 		<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 	</h3>
 
+	<?php if ( $is_event && ( $event_date || $event_location ) ) : ?>
+		<div class="event-meta-strip">
+			<?php if ( $event_date ) : ?>
+				<span class="event-meta-strip__item">
+					<span class="event-meta-strip__icon" aria-hidden="true">📅</span>
+					<?php echo esc_html( date_i18n( 'j \d\e F, H:i', strtotime( $event_date ) ) ); ?>
+				</span>
+			<?php endif; ?>
+			<?php if ( $event_location ) : ?>
+				<span class="event-meta-strip__item">
+					<span class="event-meta-strip__icon" aria-hidden="true">📍</span>
+					<?php echo esc_html( $event_location ); ?>
+				</span>
+			<?php endif; ?>
+		</div>
+	<?php endif; ?>
+
 	<p class="article-card__excerpt"><?php echo esc_html( get_the_excerpt() ); ?></p>
 
-	<?php if ( $cat_slug === 'eventos' ) :
-		$event_date     = (string) get_post_meta( $post_id, '_plataforma_event_date', true );
-		$event_location = (string) get_post_meta( $post_id, '_plataforma_event_location', true );
-		if ( $event_date || $event_location ) :
-	?>
-	<div class="event-meta-strip">
-		<?php if ( $event_date ) : ?>
-			<span class="event-meta-strip__item">
-				<span class="event-meta-strip__icon" aria-hidden="true">📅</span>
-				<?php echo esc_html( date_i18n( 'j \d\e F, H:i', strtotime( $event_date ) ) ); ?>
-			</span>
-		<?php endif; ?>
-		<?php if ( $event_location ) : ?>
-			<span class="event-meta-strip__item">
-				<span class="event-meta-strip__icon" aria-hidden="true">📍</span>
-				<?php echo esc_html( $event_location ); ?>
-			</span>
-		<?php endif; ?>
-	</div>
-	<div class="cal-dropdown">
-		<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
-			<span aria-hidden="true">🗓</span> Agregar al calendario
-		</button>
-		<div class="cal-dropdown__menu" hidden>
-			<?php if ( function_exists( 'plataforma_google_calendar_url' ) ) : ?>
-			<a class="cal-dropdown__item" href="<?php echo esc_url( plataforma_google_calendar_url( $post_id ) ); ?>" target="_blank" rel="noopener noreferrer">
-				Google Calendar
-			</a>
-			<?php endif; ?>
-			<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
-				iCal / Apple Calendar
-			</a>
-			<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
-				Outlook
-			</a>
-		</div>
-	</div>
-	<?php endif; endif; ?>
-
-	<?php
-	$lp = get_post_meta( $post_id, '_plataforma_link_preview', true );
-	if ( is_array( $lp ) && ! empty( $lp['title'] ) ) :
-		$lp_domain = ! empty( $lp['url'] ) ? (string) wp_parse_url( $lp['url'], PHP_URL_HOST ) : '';
-		?>
-		<a class="article-link-preview link-preview-card" href="<?php echo esc_url( $lp['url'] ); ?>" target="_blank" rel="noopener noreferrer">
-			<?php if ( ! empty( $lp['image'] ) ) : ?>
-				<img class="link-preview-card__img" src="<?php echo esc_url( $lp['image'] ); ?>" alt="" loading="lazy">
-			<?php endif; ?>
-			<div class="link-preview-card__body">
-				<div class="link-preview-card__title"><?php echo esc_html( $lp['title'] ); ?></div>
-				<?php if ( ! empty( $lp['description'] ) ) : ?>
-					<div class="link-preview-card__desc"><?php echo esc_html( $lp['description'] ); ?></div>
+	<?php if ( $is_event && ( $event_date || $event_location ) ) : ?>
+		<div class="cal-dropdown cal-dropdown--prominent">
+			<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
+				<span aria-hidden="true">🗓</span>
+				<span>Añadir al calendario</span>
+			</button>
+			<div class="cal-dropdown__menu" hidden>
+				<?php if ( function_exists( 'plataforma_google_calendar_url' ) ) : ?>
+					<a class="cal-dropdown__item" href="<?php echo esc_url( plataforma_google_calendar_url( $post_id ) ); ?>" target="_blank" rel="noopener noreferrer">
+						Google Calendar
+					</a>
 				<?php endif; ?>
-				<?php if ( $lp_domain ) : ?>
-					<div class="link-preview-card__domain"><?php echo esc_html( $lp_domain ); ?></div>
-				<?php endif; ?>
+				<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
+					iCal / Apple Calendar
+				</a>
+				<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
+					Outlook
+				</a>
 			</div>
-		</a>
+		</div>
 	<?php endif; ?>
+
+	<?php if ( ! $is_event ) :
+		$lp = get_post_meta( $post_id, '_plataforma_link_preview', true );
+		if ( is_array( $lp ) && ! empty( $lp['title'] ) ) :
+			$lp_domain = ! empty( $lp['url'] ) ? (string) wp_parse_url( $lp['url'], PHP_URL_HOST ) : '';
+			?>
+			<a class="article-link-preview link-preview-card" href="<?php echo esc_url( $lp['url'] ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php if ( ! empty( $lp['image'] ) ) : ?>
+					<img class="link-preview-card__img" src="<?php echo esc_url( $lp['image'] ); ?>" alt="" loading="lazy">
+				<?php endif; ?>
+				<div class="link-preview-card__body">
+					<div class="link-preview-card__title"><?php echo esc_html( $lp['title'] ); ?></div>
+					<?php if ( ! empty( $lp['description'] ) ) : ?>
+						<div class="link-preview-card__desc"><?php echo esc_html( $lp['description'] ); ?></div>
+					<?php endif; ?>
+					<?php if ( $lp_domain ) : ?>
+						<div class="link-preview-card__domain"><?php echo esc_html( $lp_domain ); ?></div>
+					<?php endif; ?>
+				</div>
+			</a>
+			<?php
+		endif;
+	endif; ?>
 
 	<footer class="article-card__footer">
 		<button

@@ -734,6 +734,20 @@ a.group-pill:hover {
   background: var(--surface, #fff);
   box-shadow: var(--shadow-sm, 0 1px 6px rgba(60, 20, 10, 0.06));
   transition: box-shadow 160ms ease, transform 160ms ease;
+  overflow: hidden; /* clip cover image to rounded corners */
+}
+
+/* Cover image (featured) bleeds to edges of the card */
+.article-card__cover-link {
+  display: block;
+  margin: -22px -24px 16px;
+}
+
+.article-card__cover {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
 }
 
 .article-card:hover {
@@ -2117,4 +2131,142 @@ a.group-pill:hover {
 .cal-dropdown__item:hover {
   background: var(--brand-softer, #fdf1ed);
   color: var(--brand, #c0391c);
+}
+
+/* ── Compose form: cover image upload ────────────────────────────────────── */
+
+.cover-upload {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--surface-soft, #f2ebe6);
+  border: 1.5px dashed var(--border, #c2a89f);
+  border-radius: var(--radius-lg, 12px);
+}
+
+.cover-upload__preview {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md, 8px);
+  background-size: cover;
+  background-position: center;
+  border: 1.5px solid var(--border, #c2a89f);
+}
+
+.cover-upload__controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cover-upload__btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+}
+
+.cover-upload__remove {
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted, #5c3d37);
+  background: transparent;
+  border: 1.5px solid var(--border, #c2a89f);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+
+.cover-upload__remove:hover {
+  background: var(--surface, #fff);
+  color: var(--brand, #c0391c);
+  border-color: var(--brand, #c0391c);
+}
+
+/* ── Article card variant: EVENT ─────────────────────────────────────────── */
+
+.article-card--event {
+  padding: 18px 22px;
+  border-left: 5px solid var(--brand, #c0391c);
+  background: linear-gradient(135deg, var(--brand-softer, #fdf1ed) 0%, var(--surface, #fff) 55%);
+}
+
+.article-card--event .article-card__cover-link {
+  margin: -18px -22px 14px;
+}
+
+.article-card--event .article-card__cover {
+  height: 140px; /* smaller cover for events to keep them compact */
+}
+
+.article-card--event .article-card__head {
+  margin-bottom: 10px;
+}
+
+.article-card--event .article-card__title {
+  font-size: 1.15rem;
+  margin: 0 0 8px;
+}
+
+.article-card--event .article-card__excerpt {
+  font-size: 0.92rem;
+  margin: 0 0 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-card--event .event-meta-strip {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: rgba(192, 57, 28, 0.08);
+}
+
+.article-card--event .event-meta-strip__item {
+  font-size: 0.85rem;
+}
+
+.article-card--event .article-card__footer {
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+/* Prominent calendar CTA inside event cards */
+.cal-dropdown--prominent {
+  display: block;
+  margin: 0 0 14px;
+}
+
+.cal-dropdown--prominent .cal-dropdown__toggle {
+  width: 100%;
+  justify-content: center;
+  padding: 13px 22px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #fff;
+  background: var(--brand, #c0391c);
+  border-color: var(--brand, #c0391c);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 2px 10px rgba(192, 57, 28, 0.25);
+}
+
+.cal-dropdown--prominent .cal-dropdown__toggle:hover,
+.cal-dropdown--prominent .cal-dropdown__toggle[aria-expanded="true"] {
+  background: var(--brand-dark, #9a2a0f);
+  border-color: var(--brand-dark, #9a2a0f);
+  box-shadow: 0 4px 16px rgba(192, 57, 28, 0.35);
+  transform: translateY(-1px);
+}
+
+.cal-dropdown--prominent .cal-dropdown__menu {
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 240px;
 }
