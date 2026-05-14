@@ -12,6 +12,14 @@ $author      = get_queried_object(); // WP_User
 $bio         = get_the_author_meta( 'description', $author->ID );
 $author_url  = get_author_posts_url( $author->ID );
 $post_count  = count_user_posts( $author->ID, 'post', true );
+
+// Resolve group names for this author
+$all_groups   = function_exists( 'plataforma_get_groups' ) ? plataforma_get_groups() : [];
+$user_group_slugs = (array) ( get_user_meta( $author->ID, '_plataforma_groups', true ) ?: [] );
+$groups_index = array_column( $all_groups, null, 'id' );
+$author_groups = array_filter(
+	array_map( fn( $slug ) => $groups_index[ $slug ] ?? null, $user_group_slugs )
+);
 ?>
 
 <main class="feed">
@@ -25,6 +33,19 @@ $post_count  = count_user_posts( $author->ID, 'post', true );
 			<?php if ( $bio ) : ?>
 				<p class="author-profile__bio"><?php echo esc_html( $bio ); ?></p>
 			<?php endif; ?>
+
+			<?php if ( $author_groups ) : ?>
+				<div class="author-profile__groups">
+					<?php foreach ( $author_groups as $g ) : ?>
+						<?php if ( $g['url'] ) : ?>
+							<a class="group-pill" href="<?php echo esc_url( $g['url'] ); ?>"><?php echo esc_html( $g['name'] ); ?></a>
+						<?php else : ?>
+							<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
+						<?php endif; ?>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
 			<p class="author-profile__stats">
 				<?php echo esc_html( $post_count ); ?>
 				<?php echo esc_html( _n( 'publicación', 'publicaciones', $post_count, 'plataforma' ) ); ?>

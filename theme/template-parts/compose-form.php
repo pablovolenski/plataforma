@@ -1,6 +1,6 @@
 <?php
 /**
- * Compose bar (Facebook-style top strip) + modal dialog with full form.
+ * Compose bar (Facebook-style top strip) + inline expanding panel with full form.
  * Only rendered for users with publish_posts capability (gated in index.php).
  */
 
@@ -23,8 +23,9 @@ foreach ( $cats as $cat ) {
 		type="button"
 		class="composer-bar__input-trigger"
 		data-action="open-composer"
-		aria-haspopup="dialog"
-		aria-controls="composer-modal"
+		aria-haspopup="true"
+		aria-expanded="false"
+		aria-controls="composer-panel"
 	>
 		<span class="composer-bar__avatar" aria-hidden="true">
 			<?php echo get_avatar( $current_user->ID, 40, '', '', [ 'class' => 'composer-bar__avatar-img' ] ); ?>
@@ -38,8 +39,9 @@ foreach ( $cats as $cat ) {
 			class="composer-bar__event-btn"
 			data-action="open-composer"
 			data-category="<?php echo esc_attr( $eventos_id ); ?>"
-			aria-haspopup="dialog"
-			aria-controls="composer-modal"
+			aria-haspopup="true"
+			aria-expanded="false"
+			aria-controls="composer-panel"
 		>
 			<span class="composer-bar__event-icon" aria-hidden="true">📅</span>
 			<span>Añadir evento</span>
@@ -47,11 +49,11 @@ foreach ( $cats as $cat ) {
 	<?php endif; ?>
 </div>
 
-<dialog class="composer-modal" id="composer-modal" aria-labelledby="composer-modal-title">
-	<div class="composer-modal__inner">
-		<div class="composer-modal__head">
-			<h2 id="composer-modal-title" class="composer-modal__title">Nueva publicación</h2>
-			<button type="button" class="composer-modal__close" data-action="close-composer" aria-label="Cerrar">×</button>
+<div class="composer-panel" id="composer-panel" aria-labelledby="composer-panel-title">
+	<div class="composer-panel__inner">
+		<div class="composer-panel__head">
+			<h2 id="composer-panel-title" class="composer-panel__title">Nueva publicación</h2>
+			<button type="button" class="composer-panel__close" data-action="close-composer" aria-label="Cerrar">×</button>
 		</div>
 
 		<div id="compose-notice" class="notice" hidden aria-live="polite"></div>
@@ -59,10 +61,10 @@ foreach ( $cats as $cat ) {
 		<form id="article-form" class="article-form" novalidate>
 			<?php get_template_part( 'template-parts/compose-fields' ); ?>
 
-			<div class="composer-modal__actions">
+			<div class="composer-panel__actions">
 				<button type="button" class="btn-ghost" data-action="close-composer">Cancelar</button>
 				<button type="submit" class="btn-primary">Publicar</button>
 			</div>
 		</form>
 	</div>
-</dialog>
+</div>
