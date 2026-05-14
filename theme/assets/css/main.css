@@ -268,7 +268,38 @@ img { max-width: 100%; height: auto; }
 @media (max-width: 520px) {
   .site-bar__write-label { display: none; }
   .site-bar__user        { display: none; }
+  /* "Mi Espacio" moved into hamburger on mobile — hidden from top bar */
   .site-bar__link[href*="tablero"] { display: none; }
+}
+
+/* Account links inside hamburger nav — desktop: hidden, mobile: shown */
+.site-bar__mobile-account {
+  display: none;
+}
+@media (max-width: 768px) {
+  .site-bar__mobile-account {
+    display: flex;
+    flex-direction: column;
+    margin: 6px 16px 4px;
+    border-top: 1px solid var(--border-light, #e0cec8);
+    padding-top: 6px;
+  }
+  .site-bar__mobile-account-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--muted, #5c3d37);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-light, #e0cec8);
+    transition: color 120ms ease;
+  }
+  .site-bar__mobile-account-link:last-child { border-bottom: 0; }
+  .site-bar__mobile-account-link:hover { color: var(--text, #1a0d09); }
+  .site-bar__mobile-account-link--primary { color: var(--brand, #c0391c); }
+  .site-bar__mobile-account-link--out { color: var(--subtle, #9a7870); }
 }
 
 @media (max-width: 768px) {
@@ -596,7 +627,7 @@ a.group-pill:hover {
   transform: translateY(-1px);
 }
 
-.composer-bar__event-icon { font-size: 1.05rem; }
+.composer-bar__event-btn .cal-icon { flex-shrink: 0; }
 
 @media (max-width: 600px) {
   .composer-bar__event-btn span:not(.composer-bar__event-icon) {
