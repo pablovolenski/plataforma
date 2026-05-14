@@ -84,7 +84,7 @@ if ( has_post_thumbnail( $post_id ) ) {
 
 	<p class="article-card__excerpt"><?php echo esc_html( get_the_excerpt() ); ?></p>
 
-	<?php if ( $is_event && ( $event_date || $event_location ) ) : ?>
+	<?php if ( $is_event ) : ?>
 		<div class="cal-dropdown cal-dropdown--prominent">
 			<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
 				<span aria-hidden="true">🗓</span>
