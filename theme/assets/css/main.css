@@ -126,6 +126,7 @@ img { max-width: 100%; height: auto; }
   align-items: center;
   gap: 10px;
   font-size: 0.92rem;
+  margin-left: auto;
 }
 
 /* Plain nav links — Tablero, etc. */
@@ -211,15 +212,18 @@ img { max-width: 100%; height: auto; }
   background: var(--brand-softer, #fdf1ed);
 }
 
-/* Logged-in user name — subtle, truncated */
+/* Logged-in user label — "Conectado como Name" */
 .site-bar__user {
-  font-size: 0.84rem;
-  color: var(--subtle);
-  font-weight: 500;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 0.82rem;
+  color: var(--subtle, #9a7870);
+  font-weight: 400;
   white-space: nowrap;
+  padding-right: 4px;
+  border-right: 1px solid var(--border-light, #e0cec8);
+}
+.site-bar__user strong {
+  font-weight: 700;
+  color: var(--muted, #5c3d37);
 }
 
 /* Hamburger — hidden on desktop, visible on mobile */
@@ -232,7 +236,7 @@ img { max-width: 100%; height: auto; }
   width: 42px;
   height: 42px;
   padding: 0;
-  margin-left: 8px;
+  margin-left: 10px;
   background: var(--brand, #c0391c);
   border: none;
   border-radius: var(--radius-md, 8px);
