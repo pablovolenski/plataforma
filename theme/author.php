@@ -35,14 +35,17 @@ $author_groups = array_filter(
 			<?php endif; ?>
 
 			<?php if ( $author_groups ) : ?>
-				<div class="author-profile__groups">
-					<?php foreach ( $author_groups as $g ) : ?>
-						<?php if ( $g['url'] ) : ?>
-							<a class="group-pill" href="<?php echo esc_url( $g['url'] ); ?>"><?php echo esc_html( $g['name'] ); ?></a>
-						<?php else : ?>
-							<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
-						<?php endif; ?>
-					<?php endforeach; ?>
+				<div class="author-profile__group-box">
+					<h2 class="author-profile__group-box-title">Grupos de Trabajo</h2>
+					<div class="group-pills">
+						<?php foreach ( $author_groups as $g ) : ?>
+							<?php if ( $g['url'] ) : ?>
+								<a class="group-pill" href="<?php echo esc_url( $g['url'] ); ?>"><?php echo esc_html( $g['name'] ); ?></a>
+							<?php else : ?>
+								<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
+							<?php endif; ?>
+						<?php endforeach; ?>
+					</div>
 				</div>
 			<?php endif; ?>
 

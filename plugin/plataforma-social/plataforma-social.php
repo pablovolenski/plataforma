@@ -557,14 +557,21 @@ function plataforma_ajax_submit_post(): void {
 		], 403 );
 	}
 
-	$title    = sanitize_text_field( $_POST['post_title']   ?? '' );
-	$excerpt  = sanitize_text_field( $_POST['post_excerpt'] ?? '' );
-	$content  = wp_kses_post( $_POST['post_content']        ?? '' );
-	$category = absint( $_POST['post_category']             ?? 0 );
-	$edit_id  = absint( $_POST['post_id']                   ?? 0 );
+	$title      = sanitize_text_field( $_POST['post_title']   ?? '' );
+	$excerpt    = sanitize_text_field( $_POST['post_excerpt'] ?? '' );
+	$content    = wp_kses_post( $_POST['post_content']        ?? '' );
+	$edit_id    = absint( $_POST['post_id']                   ?? 0 );
+
+	// Accept multi-select checkboxes (post_categories[]) or legacy single value
+	$raw_cats   = isset( $_POST['post_categories'] ) ? (array) $_POST['post_categories'] : [];
+	$categories = array_values( array_filter( array_map( 'absint', $raw_cats ) ) );
 
 	if ( ! $title || ! $content ) {
 		wp_send_json_error( [ 'message' => 'Título y cuerpo son obligatorios.' ], 422 );
+	}
+
+	if ( empty( $categories ) ) {
+		wp_send_json_error( [ 'message' => 'Selecciona al menos una categoría.' ], 422 );
 	}
 
 	if ( $edit_id ) {
@@ -577,7 +584,7 @@ function plataforma_ajax_submit_post(): void {
 			'post_title'    => $title,
 			'post_excerpt'  => $excerpt,
 			'post_content'  => $content,
-			'post_category' => $category ? [ $category ] : [],
+			'post_category' => $categories,
 		], true );
 	} else {
 		$post_id = wp_insert_post( [
@@ -586,7 +593,7 @@ function plataforma_ajax_submit_post(): void {
 			'post_content'  => $content,
 			'post_status'   => 'publish',
 			'post_author'   => get_current_user_id(),
-			'post_category' => $category ? [ $category ] : [],
+			'post_category' => $categories,
 		], true );
 	}
 
