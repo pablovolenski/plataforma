@@ -28,6 +28,19 @@ foreach ( $all_groups as $g ) {
 		<form id="profile-form" class="profile-form" novalidate>
 			<?php wp_nonce_field( 'plataforma_profile_nonce', '_wpnonce' ); ?>
 
+			<div class="profile-avatar-wrap">
+				<img id="avatar-preview"
+				     src="<?php echo esc_url( function_exists( 'plataforma_get_avatar_url' ) ? plataforma_get_avatar_url( $user->ID, 96 ) : get_avatar_url( $user->ID, [ 'size' => 96 ] ) ); ?>"
+				     alt="" width="96" height="96" class="profile-avatar__img">
+				<div>
+					<label class="btn-ghost profile-avatar__btn" for="avatar-file">
+						Cambiar foto
+						<input type="file" id="avatar-file" accept="image/*" hidden>
+					</label>
+					<span id="avatar-status" class="profile-avatar__status" aria-live="polite"></span>
+				</div>
+			</div>
+
 			<label>
 				Nombre que se muestra
 				<input type="text" name="display_name"

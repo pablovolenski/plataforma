@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initDashboardTabs();
   initProfileForm();
   initShare();
+  initPersonasFilters();
 });
 
 // ---------------------------------------------------------------------------
@@ -483,6 +484,35 @@ function initProfileForm() {
 
   if (!profileForm || typeof PlataformaData === 'undefined') return;
 
+  // Avatar upload
+  const fileInput = document.getElementById('avatar-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const status = document.getElementById('avatar-status');
+      if (status) status.textContent = 'Subiendo…';
+      const fd = new FormData();
+      fd.append('action',   'plataforma_upload_avatar');
+      fd.append('_wpnonce', profileForm.querySelector('[name="_wpnonce"]').value);
+      fd.append('avatar',   file);
+      try {
+        const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('avatar-preview').src = data.data.url;
+          if (status) status.textContent = 'Foto actualizada';
+        } else {
+          if (status) status.textContent = data.data?.message || 'Error al subir la foto.';
+        }
+      } catch {
+        if (status) status.textContent = 'Error de red.';
+      } finally {
+        fileInput.value = '';
+      }
+    });
+  }
+
   profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -544,6 +574,28 @@ function initProfileForm() {
       btn.disabled    = false;
       btn.textContent = orig;
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// /personas/ — user grid with category filter chips
+// ---------------------------------------------------------------------------
+
+function initPersonasFilters() {
+  const chips = document.querySelectorAll('.personas-filters .filter-chip');
+  const cards = document.querySelectorAll('.persona-card');
+  if (!chips.length) return;
+
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chips.forEach((c) => c.classList.remove('is-active'));
+      chip.classList.add('is-active');
+      const group = chip.dataset.group;
+      cards.forEach((card) => {
+        const groups = card.dataset.groups ? card.dataset.groups.split(' ') : [];
+        card.hidden = !!(group && !groups.includes(group));
+      });
+    });
   });
 }
 

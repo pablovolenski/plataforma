@@ -3,7 +3,7 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.7.0
+ * Version:     1.8.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
@@ -11,7 +11,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'PLATAFORMA_DB_VERSION' ) ) {
-	define( 'PLATAFORMA_DB_VERSION', '1.7.0' );
+	define( 'PLATAFORMA_DB_VERSION', '1.8.0' );
 }
 
 // Hide the frontend admin bar for all users — access WP admin via /wp-admin
@@ -41,9 +41,17 @@ function plataforma_maybe_upgrade(): void {
 		plataforma_grant_notice_caps();
 		plataforma_create_default_categories();
 		plataforma_create_default_pages();
+		plataforma_seed_default_groups();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 		flush_rewrite_rules( false );
 	}
+}
+
+function plataforma_seed_default_groups(): void {
+	if ( get_option( 'plataforma_groups' ) ) {
+		return; // don't overwrite admin edits
+	}
+	update_option( 'plataforma_groups', "Mapa Textil\nHistoria Oral\nPaseos Urbanos\nPhotovoice" );
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +261,7 @@ add_action( 'init', function () {
 	}
 	// Allow password-reset actions (the link in the email still works)
 	$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'login';
-	if ( in_array( $action, [ 'rp', 'resetpass', 'lostpassword', 'confirmaction' ], true ) ) {
+	if ( in_array( $action, [ 'logout', 'rp', 'resetpass', 'lostpassword', 'confirmaction' ], true ) ) {
 		return;
 	}
 	$redirect_to  = isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : home_url( '/tablero/' );
@@ -706,19 +714,71 @@ function plataforma_ajax_link_preview(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Virtual routes — /ingresar/, /tablero/, /escribir/
+// Avatar helper
+// ---------------------------------------------------------------------------
+
+function plataforma_get_avatar_url( int $user_id, int $size = 80 ): string {
+	$attach_id = (int) get_user_meta( $user_id, '_plataforma_avatar_id', true );
+	if ( $attach_id ) {
+		$url = wp_get_attachment_image_url( $attach_id, 'thumbnail' );
+		if ( $url ) {
+			return $url;
+		}
+	}
+	return (string) get_avatar_url( $user_id, [ 'size' => $size ] );
+}
+
+// ---------------------------------------------------------------------------
+// AJAX: Avatar upload
+// ---------------------------------------------------------------------------
+
+add_action( 'wp_ajax_plataforma_upload_avatar', 'plataforma_upload_avatar' );
+
+function plataforma_upload_avatar(): void {
+	check_ajax_referer( 'plataforma_profile_nonce', '_wpnonce' );
+
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [], 401 );
+	}
+
+	if ( empty( $_FILES['avatar'] ) ) {
+		wp_send_json_error( [ 'message' => 'No se recibió ningún archivo.' ], 400 );
+	}
+
+	require_once ABSPATH . 'wp-admin/includes/file.php';
+	require_once ABSPATH . 'wp-admin/includes/image.php';
+	require_once ABSPATH . 'wp-admin/includes/media.php';
+
+	$attach_id = media_handle_upload( 'avatar', 0 );
+
+	if ( is_wp_error( $attach_id ) ) {
+		wp_send_json_error( [ 'message' => $attach_id->get_error_message() ], 500 );
+	}
+
+	update_user_meta( $user_id, '_plataforma_avatar_id', $attach_id );
+
+	wp_send_json_success( [
+		'url' => wp_get_attachment_image_url( $attach_id, 'thumbnail' ),
+	] );
+}
+
+// ---------------------------------------------------------------------------
+// Virtual routes — /ingresar/, /tablero/, /escribir/, /personas/
 // ---------------------------------------------------------------------------
 
 add_action( 'init', function () {
 	add_rewrite_rule( '^ingresar/?$', 'index.php?plataforma_ingresar=1', 'top' );
 	add_rewrite_rule( '^tablero/?$',  'index.php?plataforma_tablero=1',  'top' );
 	add_rewrite_rule( '^escribir/?$', 'index.php?plataforma_escribir=1', 'top' );
+	add_rewrite_rule( '^personas/?$', 'index.php?plataforma_personas=1', 'top' );
 }, 2 );
 
 add_filter( 'query_vars', function ( $vars ) {
 	$vars[] = 'plataforma_ingresar';
 	$vars[] = 'plataforma_tablero';
 	$vars[] = 'plataforma_escribir';
+	$vars[] = 'plataforma_personas';
 	return $vars;
 } );
 
@@ -727,6 +787,7 @@ add_filter( 'template_include', function ( $template ) {
 		'plataforma_ingresar' => '/page-ingresar.php',
 		'plataforma_tablero'  => '/page-tablero.php',
 		'plataforma_escribir' => '/page-escribir.php',
+		'plataforma_personas' => '/page-personas.php',
 	];
 	foreach ( $map as $var => $file ) {
 		if ( get_query_var( $var ) ) {
@@ -747,7 +808,8 @@ function plataforma_route_uri_fallback(): void {
 	// Primary path already handled by template_include — nothing to do.
 	if ( get_query_var( 'plataforma_ingresar' ) ||
 	     get_query_var( 'plataforma_tablero' )  ||
-	     get_query_var( 'plataforma_escribir' ) ) {
+	     get_query_var( 'plataforma_escribir' ) ||
+	     get_query_var( 'plataforma_personas' ) ) {
 		return;
 	}
 
@@ -756,6 +818,7 @@ function plataforma_route_uri_fallback(): void {
 		'ingresar' => '/page-ingresar.php',
 		'tablero'  => '/page-tablero.php',
 		'escribir' => '/page-escribir.php',
+		'personas' => '/page-personas.php',
 	];
 
 	if ( isset( $map[ $request ] ) ) {
