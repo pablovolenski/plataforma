@@ -87,7 +87,19 @@ if ( has_post_thumbnail( $post_id ) ) {
 	<?php if ( $is_event ) : ?>
 		<div class="cal-dropdown cal-dropdown--prominent">
 			<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
-				<span aria-hidden="true">🗓</span>
+				<svg class="cal-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+					<rect x="2" y="4" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+					<path d="M2 9h16" stroke="currentColor" stroke-width="1.6"/>
+					<path d="M6.5 2v4M13.5 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+					<circle cx="6"  cy="12.5" r="0.8" fill="currentColor"/>
+					<circle cx="9"  cy="12.5" r="0.8" fill="currentColor"/>
+					<circle cx="12" cy="12.5" r="0.8" fill="currentColor"/>
+					<circle cx="6"  cy="15.5" r="0.8" fill="currentColor"/>
+					<circle cx="9"  cy="15.5" r="0.8" fill="currentColor"/>
+					<circle cx="12" cy="15.5" r="0.8" fill="currentColor"/>
+					<circle cx="19" cy="19"   r="4"   stroke="currentColor" stroke-width="1.6"/>
+					<path d="M19 16.8v4.4M16.8 19h4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+				</svg>
 				<span>Añadir al calendario</span>
 			</button>
 			<div class="cal-dropdown__menu" hidden>

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPersonasFilters();
   initCalendarDropdowns();
   initMisPublicaciones();
+  initHamburger();
 });
 
 // ---------------------------------------------------------------------------
@@ -1020,5 +1021,30 @@ function initShare() {
         confirm();
       }
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Mobile hamburger — toggles .site-bar__pages.is-open
+// ---------------------------------------------------------------------------
+
+function initHamburger() {
+  const btn = document.getElementById('nav-toggle');
+  const nav = document.getElementById('site-bar-pages');
+  if (!btn || !nav) return;
+
+  btn.addEventListener('click', () => {
+    const open = nav.classList.toggle('is-open');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'Cerrar navegación' : 'Abrir navegación');
+  });
+
+  // Close when a nav link is tapped on mobile
+  nav.addEventListener('click', (e) => {
+    if (e.target.closest('a')) {
+      nav.classList.remove('is-open');
+      btn.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-label', 'Abrir navegación');
+    }
   });
 }
