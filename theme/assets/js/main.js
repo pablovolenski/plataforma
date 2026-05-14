@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProfileForm();
   initShare();
   initPersonasFilters();
-  initCalendarDropdowns();
+  initAtcbButtons();
   initMisPublicaciones();
   initHamburger();
 });
@@ -706,25 +706,26 @@ function initProfileForm() {
 }
 
 // ---------------------------------------------------------------------------
-// Event calendar dropdowns
+// Add-to-Calendar (atcb) — uses add-to-calendar-button@2 from CDN
 // ---------------------------------------------------------------------------
 
-function initCalendarDropdowns() {
-  document.querySelectorAll('.cal-dropdown__toggle').forEach((btn) => {
+function initAtcbButtons() {
+  document.querySelectorAll('.atcb-trigger[data-atcb]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const menu     = btn.nextElementSibling;
-      const expanded = btn.getAttribute('aria-expanded') === 'true';
-      btn.setAttribute('aria-expanded', String(!expanded));
-      if (menu) menu.hidden = expanded;
-    });
-  });
-
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.cal-dropdown__toggle').forEach((btn) => {
-      const menu = btn.nextElementSibling;
-      btn.setAttribute('aria-expanded', 'false');
-      if (menu) menu.hidden = true;
+      if (typeof window.atcb_action !== 'function') {
+        console.warn('add-to-calendar-button library not loaded yet');
+        return;
+      }
+      let config;
+      try {
+        config = JSON.parse(btn.dataset.atcb);
+      } catch (err) {
+        console.error('Invalid atcb config', err);
+        return;
+      }
+      window.atcb_action(config, btn);
     });
   });
 }

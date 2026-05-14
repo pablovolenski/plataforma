@@ -706,6 +706,16 @@ function plataforma_localise_scripts(): void {
 			true
 		);
 	}
+
+	// Add-to-Calendar button library — Google, Apple, Outlook, iCal, etc.
+	// https://add-to-calendar-button.com  (MIT)
+	wp_enqueue_script(
+		'add-to-calendar-button',
+		'https://cdn.jsdelivr.net/npm/add-to-calendar-button@2',
+		[],
+		null,
+		true
+	);
 }
 
 // ---------------------------------------------------------------------------
