@@ -84,38 +84,46 @@ if ( has_post_thumbnail( $post_id ) ) {
 
 	<p class="article-card__excerpt"><?php echo esc_html( get_the_excerpt() ); ?></p>
 
-	<?php if ( $is_event ) : ?>
-		<div class="cal-dropdown cal-dropdown--prominent">
-			<button type="button" class="cal-dropdown__toggle" aria-expanded="false" aria-haspopup="true">
-				<svg class="cal-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-					<rect x="2" y="4" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
-					<path d="M2 9h16" stroke="currentColor" stroke-width="1.6"/>
-					<path d="M6.5 2v4M13.5 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-					<circle cx="6"  cy="12.5" r="0.8" fill="currentColor"/>
-					<circle cx="9"  cy="12.5" r="0.8" fill="currentColor"/>
-					<circle cx="12" cy="12.5" r="0.8" fill="currentColor"/>
-					<circle cx="6"  cy="15.5" r="0.8" fill="currentColor"/>
-					<circle cx="9"  cy="15.5" r="0.8" fill="currentColor"/>
-					<circle cx="12" cy="15.5" r="0.8" fill="currentColor"/>
-					<circle cx="19" cy="19"   r="4"   stroke="currentColor" stroke-width="1.6"/>
-					<path d="M19 16.8v4.4M16.8 19h4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-				</svg>
-				<span>Añadir al calendario</span>
-			</button>
-			<div class="cal-dropdown__menu" hidden>
-				<?php if ( function_exists( 'plataforma_google_calendar_url' ) ) : ?>
-					<a class="cal-dropdown__item" href="<?php echo esc_url( plataforma_google_calendar_url( $post_id ) ); ?>" target="_blank" rel="noopener noreferrer">
-						Google Calendar
-					</a>
-				<?php endif; ?>
-				<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
-					iCal / Apple Calendar
-				</a>
-				<a class="cal-dropdown__item" href="<?php echo esc_url( add_query_arg( 'plataforma_ical', $post_id, home_url( '/' ) ) ); ?>">
-					Outlook
-				</a>
-			</div>
-		</div>
+	<?php
+	// Build add-to-calendar-button config when this is an event with a date.
+	$atcb_json = '';
+	if ( $is_event && $event_date ) {
+		$ts          = strtotime( $event_date );
+		$tz_string   = wp_timezone_string() ?: 'Europe/Vienna';
+		$atcb_config = [
+			'name'        => get_the_title(),
+			'description' => wp_strip_all_tags( get_the_excerpt() ),
+			'startDate'   => wp_date( 'Y-m-d', $ts ),
+			'startTime'   => wp_date( 'H:i',   $ts ),
+			'endDate'     => wp_date( 'Y-m-d', $ts + HOUR_IN_SECONDS ),
+			'endTime'     => wp_date( 'H:i',   $ts + HOUR_IN_SECONDS ),
+			'timeZone'    => $tz_string,
+			'options'     => [ 'Apple', 'Google', 'iCal', 'Outlook.com' ],
+			'iCalFileName' => sanitize_title( get_the_title() ) ?: 'evento',
+		];
+		if ( $event_location ) {
+			$atcb_config['location'] = $event_location;
+		}
+		$atcb_json = wp_json_encode( $atcb_config );
+	}
+	?>
+	<?php if ( $is_event && $event_date ) : ?>
+		<button type="button" class="atcb-trigger" data-atcb="<?php echo esc_attr( $atcb_json ); ?>">
+			<svg class="cal-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+				<rect x="2" y="4" width="16" height="14" rx="2.5" stroke="#ffffff" stroke-width="1.6"/>
+				<path d="M2 9h16" stroke="#ffffff" stroke-width="1.6"/>
+				<path d="M6.5 2v4M13.5 2v4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+				<circle cx="6"  cy="12.5" r="0.8" fill="#ffffff"/>
+				<circle cx="9"  cy="12.5" r="0.8" fill="#ffffff"/>
+				<circle cx="12" cy="12.5" r="0.8" fill="#ffffff"/>
+				<circle cx="6"  cy="15.5" r="0.8" fill="#ffffff"/>
+				<circle cx="9"  cy="15.5" r="0.8" fill="#ffffff"/>
+				<circle cx="12" cy="15.5" r="0.8" fill="#ffffff"/>
+				<circle cx="19" cy="19"   r="4"   stroke="#ffffff" stroke-width="1.6"/>
+				<path d="M19 16.8v4.4M16.8 19h4.4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>
+			</svg>
+			<span>Añadir al calendario</span>
+		</button>
 	<?php endif; ?>
 
 	<?php if ( ! $is_event ) :

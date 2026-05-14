@@ -2662,14 +2662,61 @@ a.group-pill:hover {
   padding-top: 12px;
 }
 
-/* Calendar SVG icon (replaces emoji, inherits colour from button) */
+/* Calendar SVG icon — locked to pure white for maximum contrast on red button */
 .cal-icon {
   flex-shrink: 0;
   vertical-align: middle;
   display: inline-block;
 }
 
-/* Prominent calendar CTA inside event cards */
+.cal-icon path,
+.cal-icon rect,
+.cal-icon circle {
+  stroke: #ffffff;
+}
+
+.cal-icon circle[fill],
+.cal-icon rect[fill],
+.cal-icon path[fill] {
+  fill: #ffffff;
+}
+
+/* Add-to-Calendar trigger button — prominent CTA inside event cards */
+.atcb-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 13px 22px;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  background: var(--brand, #c0391c);
+  border: 1.5px solid var(--brand, #c0391c);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 2px 10px rgba(192, 57, 28, 0.25);
+  cursor: pointer;
+  transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+}
+
+.atcb-trigger:hover,
+.atcb-trigger:focus-visible {
+  background: var(--brand-dark, #9a2a0f);
+  border-color: var(--brand-dark, #9a2a0f);
+  box-shadow: 0 4px 16px rgba(192, 57, 28, 0.35);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.atcb-trigger:active {
+  transform: translateY(0);
+}
+
+/* Old prominent dropdown — kept for backwards compat with anywhere still using it */
 .cal-dropdown--prominent {
   display: block;
   margin: 0 0 14px;
