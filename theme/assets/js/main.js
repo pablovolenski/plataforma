@@ -210,6 +210,9 @@ function initComposeForm() {
     toggleEventFields();
   }
 
+  // Location autocomplete
+  initLocationAutocomplete();
+
   // Cover image upload (featured image)
   initCoverImageUpload(form);
 
@@ -239,10 +242,12 @@ function initComposeForm() {
 
     // Include event fields when Eventos category is selected
     if (eventFields && !eventFields.hidden) {
-      const evDate = form.querySelector('[name="event_date"]')?.value;
-      const evLoc  = form.querySelector('[name="event_location"]')?.value.trim();
-      if (evDate) bodyData.event_date     = evDate;
-      if (evLoc)  bodyData.event_location = evLoc;
+      const evDateVal = form.querySelector('[name="event_date_date"]')?.value;
+      const evTimeVal = form.querySelector('[name="event_date_time"]')?.value;
+      const evLoc     = form.querySelector('[name="event_location"]')?.value.trim();
+      if (evDateVal) bodyData.event_date_date = evDateVal;
+      if (evTimeVal) bodyData.event_date_time = evTimeVal;
+      if (evLoc)     bodyData.event_location  = evLoc;
     }
 
     // Include cover image attachment ID if uploaded
@@ -685,6 +690,117 @@ function initCalendarDropdowns() {
       btn.setAttribute('aria-expanded', 'false');
       if (menu) menu.hidden = true;
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Location autocomplete (Google Places or Nominatim/OSM fallback)
+// ---------------------------------------------------------------------------
+
+// Called by Google Maps SDK as the async callback once the library loads.
+// When Maps is ready we upgrade from Nominatim to Google Places if needed.
+window.plataformaMapsReady = function () {
+  const input = document.getElementById('event-location');
+  if (!input) return;
+  // If already upgraded to Google Places, do nothing
+  if (input.dataset.acMode === 'google') return;
+  // Mark for upgrade — reset the init flag so initLocationAutocomplete can run
+  delete input.dataset.acInit;
+  initLocationAutocomplete();
+};
+
+function initLocationAutocomplete() {
+  const input       = document.getElementById('event-location');
+  const suggestions = document.getElementById('event-location-suggestions');
+  if (!input || !suggestions) return;
+  if (input.dataset.acInit) return; // already initialized
+  input.dataset.acInit = '1';
+
+  // Google Places: available when Maps SDK has loaded with a valid key
+  if (window.google?.maps?.places) {
+    input.dataset.acMode = 'google';
+    const autocomplete = new google.maps.places.Autocomplete(input, {
+      fields: ['formatted_address', 'name', 'geometry'],
+      types:  ['establishment', 'geocode'],
+    });
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place.formatted_address) input.value = place.formatted_address;
+    });
+    // Google Places manages its own dropdown — hide ours
+    suggestions.hidden = true;
+    return;
+  }
+
+  // Nominatim (OpenStreetMap) fallback — no API key required
+  let debounceTimer;
+  let activeIndex = -1;
+  let currentResults = [];
+
+  function renderSuggestions(results) {
+    currentResults = results;
+    suggestions.innerHTML = '';
+    if (!results.length) { suggestions.hidden = true; return; }
+    results.forEach((r, i) => {
+      const li = document.createElement('li');
+      li.textContent = r.display_name;
+      li.setAttribute('role', 'option');
+      li.dataset.index = i;
+      li.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        input.value = r.display_name;
+        suggestions.hidden = true;
+        input.setAttribute('aria-expanded', 'false');
+      });
+      suggestions.appendChild(li);
+    });
+    suggestions.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    activeIndex = -1;
+  }
+
+  input.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (q.length < 3) { suggestions.hidden = true; return; }
+    debounceTimer = setTimeout(async () => {
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q);
+        const res  = await fetch(url, { headers: { 'Accept-Language': 'es,de,en' } });
+        const data = await res.json();
+        renderSuggestions(data);
+      } catch { suggestions.hidden = true; }
+    }, 350);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const items = suggestions.querySelectorAll('li');
+    if (!items.length || suggestions.hidden) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, -1);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      input.value = currentResults[activeIndex].display_name;
+      suggestions.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      return;
+    } else if (e.key === 'Escape') {
+      suggestions.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      return;
+    }
+    items.forEach((li, i) => li.setAttribute('aria-selected', String(i === activeIndex)));
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+      suggestions.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+    }
   });
 }
 

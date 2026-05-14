@@ -161,25 +161,51 @@ function plataforma_groups_admin_page_html(): void {
 		check_admin_referer( 'plataforma_groups_save' );
 		$raw = sanitize_textarea_field( wp_unslash( $_POST['plataforma_groups_text'] ?? '' ) );
 		update_option( 'plataforma_groups', $raw );
-		echo '<div class="notice notice-success is-dismissible"><p>Grupos guardados.</p></div>';
+		$maps_key_input = sanitize_text_field( wp_unslash( $_POST['plataforma_google_maps_key'] ?? '' ) );
+		update_option( 'plataforma_google_maps_key', $maps_key_input );
+		echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 	}
 
-	$current = (string) get_option( 'plataforma_groups', '' );
+	$current  = (string) get_option( 'plataforma_groups', '' );
+	$maps_key = (string) get_option( 'plataforma_google_maps_key', '' );
 	?>
 	<div class="wrap">
-		<h1>Grupos de usuarios</h1>
+		<h1>Configuración de Plataforma</h1>
+
+		<h2>Grupos de usuarios</h2>
 		<p>Un nombre de grupo por línea. Opcionalmente añade <code> | URL</code> para que la píldora del grupo sea un enlace:</p>
 		<pre style="font-size:13px;background:#f6f7f7;padding:8px 12px;display:inline-block;border-radius:4px;">Historia Oral
 Mapa Textil | https://vielac.at/mapa-textil/
 Paseos Urbanos | /paseos-urbanos/</pre>
 		<p>El administrador asigna grupos a cada usuario desde su perfil de usuario.</p>
+
+		<h2 style="margin-top:28px;">Google Maps API Key</h2>
+		<p>Necesaria para el autocompletado de lugares al crear eventos. <a href="https://developers.google.com/maps/documentation/places/web-service/get-api-key" target="_blank" rel="noopener">Obtener clave →</a></p>
+		<p>Si no se configura, el campo "Dónde" usará búsqueda por OpenStreetMap (sin clave).</p>
+
 		<form method="post">
 			<?php wp_nonce_field( 'plataforma_groups_save' ); ?>
-			<textarea name="plataforma_groups_text" rows="12"
-			          style="width:500px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="plataforma_groups_text">Grupos</label></th>
+					<td>
+						<textarea id="plataforma_groups_text" name="plataforma_groups_text" rows="12"
+						          style="width:500px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="plataforma_google_maps_key">Google Maps API Key</label></th>
+					<td>
+						<input type="text" id="plataforma_google_maps_key" name="plataforma_google_maps_key"
+						       value="<?php echo esc_attr( $maps_key ); ?>"
+						       style="width:420px;max-width:100%;font-family:monospace;font-size:13px;"
+						       placeholder="AIza…">
+					</td>
+				</tr>
+			</table>
 			<p>
 				<input type="submit" name="plataforma_groups_save"
-				       class="button button-primary" value="Guardar grupos">
+				       class="button button-primary" value="Guardar configuración">
 			</p>
 		</form>
 	</div>
@@ -572,15 +598,26 @@ function plataforma_ajax_submit_post(): void {
 		set_post_thumbnail( $post_id, $cover_id );
 	}
 
-	// Save event meta (date + location) when provided
-	$event_date_raw = sanitize_text_field( wp_unslash( $_POST['event_date']     ?? '' ) );
-	$event_location = sanitize_text_field( wp_unslash( $_POST['event_location'] ?? '' ) );
-	if ( $event_date_raw ) {
+	// Save event meta (date + location) when provided.
+	// Supports both legacy 'event_date' (datetime-local) and the new separate date/time fields.
+	$event_date_date = sanitize_text_field( wp_unslash( $_POST['event_date_date'] ?? '' ) );
+	$event_date_time = sanitize_text_field( wp_unslash( $_POST['event_date_time'] ?? '' ) );
+	$event_date_raw  = sanitize_text_field( wp_unslash( $_POST['event_date']      ?? '' ) );
+
+	if ( $event_date_date ) {
+		$combined = $event_date_date . ( $event_date_time ? ' ' . $event_date_time : ' 00:00' );
+		$ts = strtotime( $combined );
+		if ( $ts ) {
+			update_post_meta( $post_id, '_plataforma_event_date', date( 'Y-m-d H:i:s', $ts ) );
+		}
+	} elseif ( $event_date_raw ) {
 		$ts = strtotime( $event_date_raw );
 		if ( $ts ) {
 			update_post_meta( $post_id, '_plataforma_event_date', date( 'Y-m-d H:i:s', $ts ) );
 		}
 	}
+
+	$event_location = sanitize_text_field( wp_unslash( $_POST['event_location'] ?? '' ) );
 	if ( $event_location ) {
 		update_post_meta( $post_id, '_plataforma_event_location', $event_location );
 	}
@@ -606,6 +643,7 @@ function plataforma_localise_scripts(): void {
 		return;
 	}
 
+	$maps_key = (string) get_option( 'plataforma_google_maps_key', '' );
 	wp_localize_script( 'plataforma-main', 'PlataformaData', [
 		'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
 		'likeNonce'    => wp_create_nonce( 'plataforma_like_nonce' ),
@@ -617,7 +655,19 @@ function plataforma_localise_scripts(): void {
 		'isLoggedIn'   => is_user_logged_in(),
 		'canPost'      => current_user_can( 'publish_posts' ),
 		'userId'       => get_current_user_id(),
+		'mapsKey'      => $maps_key,
 	] );
+
+	// Enqueue Google Maps Places API when a key is configured and we might need autocomplete
+	if ( $maps_key ) {
+		wp_enqueue_script(
+			'google-maps-places',
+			'https://maps.googleapis.com/maps/api/js?key=' . rawurlencode( $maps_key ) . '&libraries=places&loading=async&callback=plataformaMapsReady',
+			[],
+			null,
+			true
+		);
+	}
 }
 
 // ---------------------------------------------------------------------------

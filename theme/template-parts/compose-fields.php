@@ -24,14 +24,24 @@ $cats = get_categories( [ 'hide_empty' => false, 'orderby' => 'name' ] );
 </label>
 
 <div id="event-fields" class="event-fields" hidden>
-	<label>
-		Cuándo
-		<input type="datetime-local" name="event_date" id="event-date">
-	</label>
+	<div class="event-fields__datetime">
+		<label>
+			Fecha
+			<input type="date" name="event_date_date" id="event-date-date">
+		</label>
+		<label>
+			Hora
+			<input type="time" name="event_date_time" id="event-date-time" step="300">
+		</label>
+	</div>
 	<label>
 		Dónde
-		<input type="text" name="event_location" id="event-location"
-		       placeholder="Lugar del evento…" maxlength="200" autocomplete="off">
+		<div class="event-location-wrap">
+			<input type="text" name="event_location" id="event-location"
+			       placeholder="Nombre del lugar o dirección…" maxlength="300" autocomplete="off"
+			       role="combobox" aria-autocomplete="list" aria-expanded="false">
+			<ul id="event-location-suggestions" class="location-suggestions" hidden role="listbox"></ul>
+		</div>
 	</label>
 </div>
 
