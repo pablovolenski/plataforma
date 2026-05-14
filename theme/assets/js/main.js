@@ -75,13 +75,22 @@ function initComposerPanel() {
   const titleEl = document.getElementById('composer-panel-title');
 
   function openPanel(presetCatId) {
+    const catPicker   = panel.querySelector('.cat-picker');
+    const eventFields = panel.querySelector('#event-fields') || document.getElementById('event-fields');
+
     if (presetCatId) {
-      // Check the matching checkbox; uncheck all others for the event preset
+      // Event mode: auto-check Eventos, hide category chips, reveal event fields
       panel.querySelectorAll('[name="post_categories[]"]').forEach((cb) => {
-        if (cb.value === String(presetCatId)) cb.checked = true;
+        cb.checked = (cb.value === String(presetCatId));
       });
+      if (catPicker)   catPicker.hidden = true;
+      if (eventFields) eventFields.hidden = false;
+      if (titleEl) titleEl.textContent = 'Nuevo evento';
+    } else {
+      // Normal mode
+      if (catPicker)   catPicker.hidden = false;
+      if (titleEl) titleEl.textContent = 'Nueva publicación';
     }
-    if (titleEl) titleEl.textContent = presetCatId ? 'Nuevo evento' : 'Nueva publicación';
 
     panel.classList.add('is-open');
 
@@ -107,6 +116,12 @@ function initComposerPanel() {
     document.querySelectorAll('[data-action="open-composer"]').forEach((t) => {
       t.setAttribute('aria-expanded', 'false');
     });
+    // Reset to normal mode so reopening via Reflexión rápida is clean
+    const catPicker   = panel.querySelector('.cat-picker');
+    const eventFields = panel.querySelector('#event-fields') || document.getElementById('event-fields');
+    panel.querySelectorAll('[name="post_categories[]"]').forEach((cb) => { cb.checked = false; });
+    if (catPicker)   catPicker.hidden = false;
+    if (eventFields) eventFields.hidden = true;
   }
 
   document.querySelectorAll('[data-action="open-composer"]').forEach((trigger) => {
@@ -821,10 +836,36 @@ function initLocationAutocomplete() {
     return;
   }
 
-  // Nominatim (OpenStreetMap) fallback — no API key required
+  // Open-source geocoding: Photon (Komoot) primary, Nominatim fallback
   let debounceTimer;
   let activeIndex = -1;
   let currentResults = [];
+
+  function buildPhotonLabel(p) {
+    const street = p.street && p.housenumber ? `${p.street} ${p.housenumber}` : (p.street || null);
+    return [p.name, street, p.city, p.country].filter(Boolean).join(', ');
+  }
+
+  async function fetchGeoSuggestions(q) {
+    // 1. Photon (Komoot) — no key, European-optimised
+    try {
+      const res  = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=de`,
+        { signal: AbortSignal.timeout(4000) }
+      );
+      const data = await res.json();
+      const items = (data.features || []).map((f) => ({ display_name: buildPhotonLabel(f.properties) })).filter((r) => r.display_name);
+      if (items.length) return items;
+    } catch { /* fall through */ }
+    // 2. Nominatim (OpenStreetMap) — silent fallback
+    try {
+      const res  = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`,
+        { headers: { 'Accept-Language': 'es,de,en' } }
+      );
+      return await res.json();
+    } catch { return []; }
+  }
 
   function renderSuggestions(results) {
     currentResults = results;
@@ -853,12 +894,7 @@ function initLocationAutocomplete() {
     const q = input.value.trim();
     if (q.length < 3) { suggestions.hidden = true; return; }
     debounceTimer = setTimeout(async () => {
-      try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q);
-        const res  = await fetch(url, { headers: { 'Accept-Language': 'es,de,en' } });
-        const data = await res.json();
-        renderSuggestions(data);
-      } catch { suggestions.hidden = true; }
+      renderSuggestions(await fetchGeoSuggestions(q));
     }, 350);
   });
 
