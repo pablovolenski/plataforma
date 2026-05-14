@@ -61,7 +61,11 @@ $groups = function_exists( 'plataforma_get_groups' ) ? plataforma_get_groups() :
 				<?php if ( ! empty( $member_groups ) ) : ?>
 					<div class="persona-card__groups">
 						<?php foreach ( $member_groups as $g ) : ?>
-							<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
+							<?php if ( ! empty( $g['url'] ) ) : ?>
+								<a class="group-pill" href="<?php echo esc_url( $g['url'] ); ?>"><?php echo esc_html( $g['name'] ); ?></a>
+							<?php else : ?>
+								<span class="group-pill"><?php echo esc_html( $g['name'] ); ?></span>
+							<?php endif; ?>
 						<?php endforeach; ?>
 					</div>
 				<?php endif; ?>

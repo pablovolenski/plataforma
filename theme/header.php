@@ -20,7 +20,7 @@
 
 		<nav class="site-bar__nav" aria-label="Cuenta">
 			<?php if ( is_user_logged_in() ) : ?>
-				<a class="site-bar__link" href="<?php echo esc_url( home_url( '/tablero/' ) ); ?>">Tablero</a>
+				<a class="site-bar__link" href="<?php echo esc_url( home_url( '/tablero/' ) ); ?>">Mi Espacio</a>
 
 				<?php if ( current_user_can( 'publish_posts' ) ) : ?>
 					<a class="site-bar__link site-bar__link--accent site-bar__write"

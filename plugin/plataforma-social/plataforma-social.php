@@ -112,16 +112,30 @@ function plataforma_grant_notice_caps(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns all defined groups as [ ['id' => slug, 'name' => label], ... ]
+ * Returns all defined groups as [ ['id' => slug, 'name' => label, 'url' => ''], ... ]
+ *
+ * Each line in the option can be:
+ *   Group Name
+ *   Group Name | https://vielac.at/historia-oral/
  */
 function plataforma_get_groups(): array {
 	$raw    = get_option( 'plataforma_groups', '' );
 	$lines  = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
 	$groups = [];
-	foreach ( $lines as $name ) {
+	foreach ( $lines as $line ) {
+		if ( str_contains( $line, '|' ) ) {
+			[ $name, $url ] = array_map( 'trim', explode( '|', $line, 2 ) );
+		} else {
+			$name = $line;
+			$url  = '';
+		}
+		if ( ! $name ) {
+			continue;
+		}
 		$groups[] = [
 			'id'   => sanitize_title( $name ),
 			'name' => $name,
+			'url'  => $url ? esc_url_raw( $url ) : '',
 		];
 	}
 	return $groups;
@@ -154,11 +168,15 @@ function plataforma_groups_admin_page_html(): void {
 	?>
 	<div class="wrap">
 		<h1>Grupos de usuarios</h1>
-		<p>Un nombre de grupo por línea. El administrador asigna grupos a cada usuario desde su perfil.</p>
+		<p>Un nombre de grupo por línea. Opcionalmente añade <code> | URL</code> para que la píldora del grupo sea un enlace:</p>
+		<pre style="font-size:13px;background:#f6f7f7;padding:8px 12px;display:inline-block;border-radius:4px;">Historia Oral
+Mapa Textil | https://vielac.at/mapa-textil/
+Paseos Urbanos | /paseos-urbanos/</pre>
+		<p>El administrador asigna grupos a cada usuario desde su perfil de usuario.</p>
 		<form method="post">
 			<?php wp_nonce_field( 'plataforma_groups_save' ); ?>
 			<textarea name="plataforma_groups_text" rows="12"
-			          style="width:400px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
+			          style="width:500px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
 			<p>
 				<input type="submit" name="plataforma_groups_save"
 				       class="button button-primary" value="Guardar grupos">
@@ -232,6 +250,41 @@ add_filter( 'manage_users_custom_column', function ( $output, $col, $user_id ) {
 	}
 	return $names ? implode( ', ', $names ) : '<span style="color:#999">—</span>';
 }, 10, 3 );
+
+// ---------------------------------------------------------------------------
+// Category → page URL (shown in admin edit screen; used by post-card badges)
+// ---------------------------------------------------------------------------
+
+add_action( 'category_edit_form_fields', 'plataforma_category_url_field' );
+
+function plataforma_category_url_field( WP_Term $term ): void {
+	$url = (string) get_term_meta( $term->term_id, '_plataforma_category_url', true );
+	?>
+	<tr class="form-field">
+		<th scope="row">
+			<label for="plataforma_category_url">Página asociada (URL)</label>
+		</th>
+		<td>
+			<input type="url" id="plataforma_category_url" name="plataforma_category_url"
+			       class="regular-text"
+			       value="<?php echo esc_attr( $url ); ?>"
+			       placeholder="https://vielac.at/historia-oral/">
+			<p class="description">
+				Si se indica, la etiqueta de categoría en las tarjetas se convierte en un enlace a esta página.
+			</p>
+		</td>
+	</tr>
+	<?php
+}
+
+add_action( 'edited_category', 'plataforma_save_category_url' );
+
+function plataforma_save_category_url( int $term_id ): void {
+	if ( ! current_user_can( 'manage_categories' ) || ! isset( $_POST['plataforma_category_url'] ) ) {
+		return;
+	}
+	update_term_meta( $term_id, '_plataforma_category_url', esc_url_raw( wp_unslash( $_POST['plataforma_category_url'] ) ) );
+}
 
 // ---------------------------------------------------------------------------
 // Login takeover — /ingresar/ replaces wp-login.php for non-admins

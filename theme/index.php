@@ -17,14 +17,34 @@ get_header();
 
 	<section class="wall" aria-label="Muro público">
 		<div class="wall__filters" id="filters" role="group" aria-label="Filtrar por categoría">
-			<button class="filter-chip is-active" data-filter="all">Todo</button>
 			<?php
-			$filter_cats = get_categories( [
+			$default_cat_id = (int) get_option( 'default_category' );
+			$filter_cats    = get_categories( [
 				'hide_empty' => false,
 				'orderby'    => 'name',
 				'order'      => 'ASC',
 			] );
-			foreach ( $filter_cats as $fcat ) :
+
+			// Render default category first (acts as "show all"), then the rest
+			$default_cat = null;
+			$other_cats  = [];
+			foreach ( $filter_cats as $fcat ) {
+				if ( (int) $fcat->term_id === $default_cat_id ) {
+					$default_cat = $fcat;
+				} else {
+					$other_cats[] = $fcat;
+				}
+			}
+
+			if ( $default_cat ) :
+				?>
+				<button class="filter-chip is-active" data-filter="all">
+					<?php echo esc_html( $default_cat->name ); ?>
+				</button>
+				<?php
+			endif;
+
+			foreach ( $other_cats as $fcat ) :
 				?>
 				<button class="filter-chip" data-filter="<?php echo esc_attr( $fcat->slug ); ?>">
 					<?php echo esc_html( $fcat->name ); ?>
