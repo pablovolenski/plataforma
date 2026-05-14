@@ -98,6 +98,7 @@ if ( has_post_thumbnail( $post_id ) ) {
 			'endDate'     => wp_date( 'Y-m-d', $ts + HOUR_IN_SECONDS ),
 			'endTime'     => wp_date( 'H:i',   $ts + HOUR_IN_SECONDS ),
 			'timeZone'    => $tz_string,
+			'listStyle'   => 'dropdown',
 			'options'     => [ 'Apple', 'Google', 'iCal', 'Outlook.com' ],
 			'iCalFileName' => sanitize_title( get_the_title() ) ?: 'evento',
 		];

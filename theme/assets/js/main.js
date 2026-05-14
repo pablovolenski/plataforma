@@ -4,7 +4,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   initFilters();
   initCharCounters();
-  initComposerModal();
+  initComposerPanel();
   initComposeForm();
   initLoginModal();
   initLoginPage();
@@ -65,50 +65,56 @@ function initCharCounters() {
 }
 
 // ---------------------------------------------------------------------------
-// Composer modal: open / close / category preset
+// Composer panel: inline expanding form (no overlay/backdrop)
 // ---------------------------------------------------------------------------
 
-function initComposerModal() {
-  const modal = document.getElementById('composer-modal');
-  if (!modal) return;
+function initComposerPanel() {
+  const panel = document.getElementById('composer-panel');
+  if (!panel) return;
 
-  const categorySelect = modal.querySelector('[name="post_category"]');
+  const categorySelect = panel.querySelector('[name="post_category"]');
+  const titleEl        = document.getElementById('composer-panel-title');
+
+  function openPanel(presetCatId) {
+    if (presetCatId && categorySelect) categorySelect.value = presetCatId;
+    if (titleEl) titleEl.textContent = presetCatId ? 'Nuevo evento' : 'Nueva publicación';
+
+    panel.classList.add('is-open');
+
+    // Update aria-expanded on all trigger buttons
+    document.querySelectorAll('[data-action="open-composer"]').forEach((t) => {
+      t.setAttribute('aria-expanded', 'true');
+    });
+
+    // Focus the editor after the CSS transition completes
+    setTimeout(() => {
+      const editor = panel.querySelector('#compose-editor');
+      if (editor) { editor.focus(); return; }
+      const titleField = panel.querySelector('[name="post_title"]');
+      if (titleField) titleField.focus();
+    }, 290);
+
+    // Scroll the panel into view smoothly
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+
+  function closePanel() {
+    panel.classList.remove('is-open');
+    document.querySelectorAll('[data-action="open-composer"]').forEach((t) => {
+      t.setAttribute('aria-expanded', 'false');
+    });
+  }
 
   document.querySelectorAll('[data-action="open-composer"]').forEach((trigger) => {
-    trigger.addEventListener('click', () => {
-      const presetId = trigger.dataset.category;
-      if (presetId && categorySelect) {
-        categorySelect.value = presetId;
-      }
-
-      if (typeof modal.showModal === 'function') {
-        modal.showModal();
-      } else {
-        modal.setAttribute('open', '');
-      }
-
-      setTimeout(() => {
-        const editor = modal.querySelector('#compose-editor');
-        if (editor) { editor.focus(); return; }
-        const titleField = modal.querySelector('[name="post_title"]');
-        if (titleField) titleField.focus();
-      }, 50);
-    });
+    trigger.addEventListener('click', () => openPanel(trigger.dataset.category || ''));
   });
 
-  modal.querySelectorAll('[data-action="close-composer"]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (typeof modal.close === 'function') modal.close();
-      else modal.removeAttribute('open');
-    });
+  panel.querySelectorAll('[data-action="close-composer"]').forEach((btn) => {
+    btn.addEventListener('click', closePanel);
   });
 
-  modal.addEventListener('click', (e) => {
-    const rect = modal.getBoundingClientRect();
-    const inDialog =
-      e.clientX >= rect.left && e.clientX <= rect.right &&
-      e.clientY >= rect.top  && e.clientY <= rect.bottom;
-    if (!inDialog && typeof modal.close === 'function') modal.close();
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && panel.classList.contains('is-open')) closePanel();
   });
 }
 

@@ -606,70 +606,79 @@ a.group-pill:hover {
 }
 
 /* =========================================================
-   Modal dialog (compose)
+   Inline composer panel (expands below the bar, no overlay)
    ========================================================= */
 
-.composer-modal {
-  border: 0;
-  border-radius: var(--radius-xl);
-  padding: 0;
-  width: min(560px, calc(100% - 24px));
-  max-height: 90vh;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  color: var(--text);
+.composer-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(.4, 0, .2, 1),
+              margin-top 280ms cubic-bezier(.4, 0, .2, 1);
+  margin-top: 0;
 }
 
-.composer-modal::backdrop {
-  background: rgba(38, 24, 16, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+.composer-panel.is-open {
+  grid-template-rows: 1fr;
+  margin-top: 12px;
 }
 
-.composer-modal__inner {
-  padding: 24px 26px;
-  max-height: 90vh;
-  overflow-y: auto;
+.composer-panel__inner {
+  overflow: hidden;
+  border: 1.5px solid var(--border, #c2a89f);
+  border-radius: var(--radius-xl, 18px);
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow, 0 2px 16px rgba(60,20,10,0.09));
+  color: var(--text, #1a0d09);
+  /* padding transitions from 0 → full when open */
+  padding: 0 26px;
+  transition: padding 280ms cubic-bezier(.4, 0, .2, 1);
 }
 
-.composer-modal__head {
+.composer-panel.is-open .composer-panel__inner {
+  padding: 24px 26px 20px;
+}
+
+.composer-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 18px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-light, #e0cec8);
 }
 
-.composer-modal__title {
+.composer-panel__title {
   margin: 0;
-  font-size: 1.25rem;
-  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text, #1a0d09);
 }
 
-.composer-modal__close {
+.composer-panel__close {
   width: 32px;
   height: 32px;
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: var(--muted);
+  color: var(--muted, #5c3d37);
   font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 }
 
-.composer-modal__close:hover {
-  background: var(--brand-softer);
-  color: var(--brand);
+.composer-panel__close:hover {
+  background: var(--brand-softer, #fdf1ed);
+  color: var(--brand, #c0391c);
 }
 
-.composer-modal__actions {
+.composer-panel__actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light, #e0cec8);
 }
 
 /* =========================================================
@@ -1309,6 +1318,13 @@ a.group-pill:hover {
   line-height: 1.55;
 }
 
+.author-profile__groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
 .author-profile__stats {
   margin: 0;
   font-size: 0.85rem;
@@ -1358,7 +1374,7 @@ a.group-pill:hover {
 @media print {
   .site-bar,
   .composer-bar,
-  .composer-modal,
+  .composer-panel,
   .wall__filters,
   .like-btn,
   .article-card__footer,
@@ -1660,8 +1676,7 @@ a.group-pill:hover {
    ========================================================= */
 
 @media (max-width: 600px) {
-  /* Bottom-sheet modals */
-  dialog.composer-modal,
+  /* Bottom-sheet login modal on mobile */
   dialog.login-modal {
     inset-block-start: auto !important;
     inset-block-end: 0 !important;
