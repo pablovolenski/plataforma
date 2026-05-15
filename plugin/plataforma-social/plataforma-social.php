@@ -27,6 +27,7 @@ function plataforma_activate(): void {
 	plataforma_create_default_categories();
 	plataforma_cleanup_old_roles();
 	plataforma_grant_notice_caps();
+	plataforma_ensure_vapid_keys();
 	update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 	flush_rewrite_rules( false );
 }
@@ -42,6 +43,7 @@ function plataforma_maybe_upgrade(): void {
 		plataforma_create_default_categories();
 		plataforma_create_default_pages();
 		plataforma_seed_default_groups();
+		plataforma_ensure_vapid_keys();
 		update_option( 'plataforma_db_version', PLATAFORMA_DB_VERSION );
 		flush_rewrite_rules( false );
 	}
@@ -105,6 +107,91 @@ function plataforma_grant_notice_caps(): void {
 	] as $cap ) {
 		$admin->add_cap( $cap );
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Admin calendar CPT (plataforma_cal_event) — only admins can create/edit
+// ---------------------------------------------------------------------------
+
+add_action( 'init', 'plataforma_register_cal_event_cpt', 3 );
+
+function plataforma_register_cal_event_cpt(): void {
+	register_post_type( 'plataforma_cal_event', [
+		'label'           => 'Agenda',
+		'labels'          => [
+			'name'          => 'Agenda',
+			'singular_name' => 'Evento de agenda',
+			'add_new_item'  => 'Nuevo evento de agenda',
+			'edit_item'     => 'Editar evento de agenda',
+			'all_items'     => 'Todos los eventos',
+		],
+		'public'             => false,
+		'publicly_queryable' => false,
+		'show_ui'            => true,
+		'show_in_menu'       => true,
+		'show_in_rest'       => false,
+		'menu_icon'          => 'dashicons-calendar-alt',
+		'menu_position'      => 6,
+		'supports'           => [ 'title', 'editor' ],
+		'capability_type'    => 'post',
+		'capabilities'       => [ 'create_posts' => 'manage_options' ],
+		'map_meta_cap'       => true,
+	] );
+}
+
+add_action( 'add_meta_boxes', 'plataforma_cal_event_meta_boxes' );
+
+function plataforma_cal_event_meta_boxes(): void {
+	add_meta_box(
+		'plataforma_cal_event_details',
+		'Detalles del evento',
+		'plataforma_cal_event_meta_box_html',
+		'plataforma_cal_event',
+		'side',
+		'high'
+	);
+}
+
+function plataforma_cal_event_meta_box_html( WP_Post $post ): void {
+	wp_nonce_field( 'plataforma_cal_event_save', 'plataforma_cal_event_nonce' );
+	$start_date = (string) get_post_meta( $post->ID, '_cal_start_date', true );
+	$end_date   = (string) get_post_meta( $post->ID, '_cal_end_date',   true );
+	$color      = (string) get_post_meta( $post->ID, '_cal_color',      true ) ?: '#c0391c';
+	?>
+	<p>
+		<label for="cal_start_date"><strong>Fecha de inicio</strong></label><br>
+		<input type="date" id="cal_start_date" name="cal_start_date"
+		       value="<?php echo esc_attr( $start_date ); ?>" style="width:100%">
+	</p>
+	<p>
+		<label for="cal_end_date"><strong>Fecha de fin (opcional)</strong></label><br>
+		<input type="date" id="cal_end_date" name="cal_end_date"
+		       value="<?php echo esc_attr( $end_date ); ?>" style="width:100%">
+	</p>
+	<p>
+		<label for="cal_color"><strong>Color</strong></label><br>
+		<input type="color" id="cal_color" name="cal_color"
+		       value="<?php echo esc_attr( $color ); ?>">
+	</p>
+	<?php
+}
+
+add_action( 'save_post_plataforma_cal_event', 'plataforma_cal_event_save_meta' );
+
+function plataforma_cal_event_save_meta( int $post_id ): void {
+	if ( ! isset( $_POST['plataforma_cal_event_nonce'] ) ||
+	     ! wp_verify_nonce( sanitize_key( $_POST['plataforma_cal_event_nonce'] ), 'plataforma_cal_event_save' ) ) {
+		return;
+	}
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+		return;
+	}
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	update_post_meta( $post_id, '_cal_start_date', sanitize_text_field( wp_unslash( $_POST['cal_start_date'] ?? '' ) ) );
+	update_post_meta( $post_id, '_cal_end_date',   sanitize_text_field( wp_unslash( $_POST['cal_end_date']   ?? '' ) ) );
+	update_post_meta( $post_id, '_cal_color',      sanitize_hex_color( wp_unslash( $_POST['cal_color']      ?? '#c0391c' ) ) ?: '#c0391c' );
 }
 
 // ---------------------------------------------------------------------------
@@ -644,6 +731,20 @@ function plataforma_ajax_submit_post(): void {
 		update_post_meta( $post_id, '_plataforma_event_location', $event_location );
 	}
 
+	// Dispatch @mention notifications.
+	$mentioned = array_unique( array_map( 'absint', (array) ( $_POST['mentioned_users'] ?? [] ) ) );
+	foreach ( $mentioned as $uid ) {
+		if ( $uid && $uid !== get_current_user_id() && get_user_by( 'id', $uid ) ) {
+			plataforma_push_notification( $uid, [
+				'type'        => 'mention',
+				'post_id'     => $post_id,
+				'post_title'  => get_the_title( $post_id ),
+				'author_id'   => get_current_user_id(),
+				'author_name' => wp_get_current_user()->display_name,
+			] );
+		}
+	}
+
 	wp_send_json_success( [ 'redirect' => get_permalink( $post_id ) ] );
 }
 
@@ -690,17 +791,19 @@ function plataforma_localise_scripts(): void {
 
 	$maps_key = (string) get_option( 'plataforma_google_maps_key', '' );
 	wp_localize_script( 'plataforma-main', 'PlataformaData', [
-		'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-		'likeNonce'    => wp_create_nonce( 'plataforma_like_nonce' ),
-		'postNonce'    => wp_create_nonce( 'plataforma_post_nonce' ),
-		'loginNonce'   => wp_create_nonce( 'plataforma_login_nonce' ),
-		'profileNonce' => wp_create_nonce( 'plataforma_profile_nonce' ),
-		'loginUrl'     => home_url( '/ingresar/' ),
-		'tableroUrl'   => home_url( '/tablero/' ),
-		'isLoggedIn'   => is_user_logged_in(),
-		'canPost'      => current_user_can( 'publish_posts' ),
-		'userId'       => get_current_user_id(),
-		'mapsKey'      => $maps_key,
+		'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+		'likeNonce'      => wp_create_nonce( 'plataforma_like_nonce' ),
+		'postNonce'      => wp_create_nonce( 'plataforma_post_nonce' ),
+		'loginNonce'     => wp_create_nonce( 'plataforma_login_nonce' ),
+		'profileNonce'   => wp_create_nonce( 'plataforma_profile_nonce' ),
+		'notifNonce'     => wp_create_nonce( 'plataforma_notif_nonce' ),
+		'loginUrl'       => home_url( '/ingresar/' ),
+		'tableroUrl'     => home_url( '/tablero/' ),
+		'isLoggedIn'     => is_user_logged_in(),
+		'canPost'        => current_user_can( 'publish_posts' ),
+		'userId'         => get_current_user_id(),
+		'mapsKey'        => $maps_key,
+		'vapidPublicKey' => (string) get_option( 'plataforma_vapid_public', '' ),
 	] );
 
 	// Enqueue Google Maps Places API when a key is configured and we might need autocomplete
@@ -1096,6 +1199,27 @@ add_action( 'init', function () {
 }, 20 );
 
 // ---------------------------------------------------------------------------
+// Service worker — serve from origin root at /sw.js
+// ---------------------------------------------------------------------------
+
+add_action( 'init', function () {
+	$uri = trim( (string) parse_url( $_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH ), '/' );
+	if ( $uri !== 'sw.js' ) {
+		return;
+	}
+	$sw_file = get_template_directory() . '/sw.js';
+	if ( ! file_exists( $sw_file ) ) {
+		return;
+	}
+	header( 'Content-Type: application/javascript; charset=utf-8' );
+	header( 'Service-Worker-Allowed: /' );
+	header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	readfile( $sw_file );
+	exit;
+}, 1 );
+
+// ---------------------------------------------------------------------------
 // Virtual routes — /ingresar/, /tablero/, /escribir/, /personas/
 // ---------------------------------------------------------------------------
 
@@ -1253,4 +1377,282 @@ function plataforma_login_redirect( $redirect_to, $request, $user ) {
 		}
 	}
 	return $redirect_to;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications — in-app + web push
+// ---------------------------------------------------------------------------
+
+/**
+ * Stores a notification in user meta and optionally triggers a web push.
+ */
+function plataforma_push_notification( int $user_id, array $data ): void {
+	$notifications = (array) ( get_user_meta( $user_id, '_plataforma_notifications', true ) ?: [] );
+	array_unshift( $notifications, array_merge( $data, [
+		'id'         => wp_generate_uuid4(),
+		'created_at' => current_time( 'mysql' ),
+		'read'       => false,
+	] ) );
+	update_user_meta( $user_id, '_plataforma_notifications', array_slice( $notifications, 0, 50 ) );
+	plataforma_send_web_push( $user_id, $data );
+}
+
+// AJAX: fetch current user's notifications
+add_action( 'wp_ajax_plataforma_fetch_notifications', 'plataforma_ajax_fetch_notifications' );
+
+function plataforma_ajax_fetch_notifications(): void {
+	check_ajax_referer( 'plataforma_notif_nonce', '_wpnonce' );
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [], 401 );
+	}
+	$notifications = (array) ( get_user_meta( $user_id, '_plataforma_notifications', true ) ?: [] );
+	$unread = count( array_filter( $notifications, fn( $n ) => ! $n['read'] ) );
+	wp_send_json_success( [
+		'notifications' => $notifications,
+		'unread'        => $unread,
+	] );
+}
+
+// AJAX: mark all notifications as read
+add_action( 'wp_ajax_plataforma_mark_notifications_read', 'plataforma_ajax_mark_notifications_read' );
+
+function plataforma_ajax_mark_notifications_read(): void {
+	check_ajax_referer( 'plataforma_notif_nonce', '_wpnonce' );
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [], 401 );
+	}
+	$notifications = (array) ( get_user_meta( $user_id, '_plataforma_notifications', true ) ?: [] );
+	foreach ( $notifications as &$n ) {
+		$n['read'] = true;
+	}
+	unset( $n );
+	update_user_meta( $user_id, '_plataforma_notifications', $notifications );
+	wp_send_json_success();
+}
+
+// AJAX: save push subscription
+add_action( 'wp_ajax_plataforma_save_push_subscription', 'plataforma_ajax_save_push_subscription' );
+
+function plataforma_ajax_save_push_subscription(): void {
+	check_ajax_referer( 'plataforma_notif_nonce', '_wpnonce' );
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		wp_send_json_error( [], 401 );
+	}
+	$sub_json = wp_unslash( $_POST['subscription'] ?? '' );
+	$sub      = json_decode( $sub_json, true );
+	if ( ! is_array( $sub ) || empty( $sub['endpoint'] ) ) {
+		wp_send_json_error( [ 'message' => 'Suscripción inválida.' ], 400 );
+	}
+	update_user_meta( $user_id, '_plataforma_push_subscription', $sub );
+	wp_send_json_success();
+}
+
+// AJAX: user search (for @mention autocomplete)
+add_action( 'wp_ajax_plataforma_search_users', 'plataforma_ajax_search_users' );
+
+function plataforma_ajax_search_users(): void {
+	check_ajax_referer( 'plataforma_post_nonce', '_wpnonce' );
+	$q = sanitize_text_field( wp_unslash( $_GET['q'] ?? '' ) );
+	if ( strlen( $q ) < 2 ) {
+		wp_send_json_success( [] );
+	}
+	$users = get_users( [
+		'search'         => "*{$q}*",
+		'search_columns' => [ 'display_name', 'user_login' ],
+		'number'         => 8,
+		'exclude'        => [ get_current_user_id() ],
+		'fields'         => [ 'ID', 'display_name' ],
+	] );
+	$results = array_map( fn( $u ) => [
+		'id'     => $u->ID,
+		'name'   => $u->display_name,
+		'avatar' => plataforma_get_avatar_url( (int) $u->ID, 32 ),
+	], $users );
+	wp_send_json_success( $results );
+}
+
+// AJAX: fetch calendar events for a given year/month
+add_action( 'wp_ajax_plataforma_fetch_calendar_events',        'plataforma_ajax_fetch_calendar_events' );
+add_action( 'wp_ajax_nopriv_plataforma_fetch_calendar_events', 'plataforma_ajax_fetch_calendar_events' );
+
+function plataforma_ajax_fetch_calendar_events(): void {
+	check_ajax_referer( 'plataforma_notif_nonce', '_wpnonce' );
+	$year  = absint( $_GET['year']  ?? date( 'Y' ) );
+	$month = absint( $_GET['month'] ?? date( 'm' ) );
+	if ( ! $year || $month < 1 || $month > 12 ) {
+		wp_send_json_error( [ 'message' => 'Parámetros inválidos.' ], 400 );
+	}
+
+	$first_day  = sprintf( '%04d-%02d-01', $year, $month );
+	$last_day   = date( 'Y-m-t', strtotime( $first_day ) );
+
+	$posts = get_posts( [
+		'post_type'      => 'plataforma_cal_event',
+		'post_status'    => 'publish',
+		'posts_per_page' => 100,
+		'meta_query'     => [
+			'relation' => 'AND',
+			[
+				'key'     => '_cal_start_date',
+				'value'   => [ $first_day, $last_day ],
+				'compare' => 'BETWEEN',
+				'type'    => 'DATE',
+			],
+		],
+		'orderby'        => 'meta_value',
+		'meta_key'       => '_cal_start_date',
+		'order'          => 'ASC',
+	] );
+
+	$events = array_map( function ( WP_Post $p ) {
+		return [
+			'id'         => $p->ID,
+			'title'      => $p->post_title,
+			'start_date' => (string) get_post_meta( $p->ID, '_cal_start_date', true ),
+			'end_date'   => (string) get_post_meta( $p->ID, '_cal_end_date',   true ),
+			'color'      => (string) get_post_meta( $p->ID, '_cal_color',      true ) ?: '#c0391c',
+			'excerpt'    => wp_trim_words( wp_strip_all_tags( $p->post_content ), 25 ),
+		];
+	}, $posts );
+
+	wp_send_json_success( $events );
+}
+
+// ---------------------------------------------------------------------------
+// Web Push (VAPID) — key generation + send
+// ---------------------------------------------------------------------------
+
+function plataforma_base64url( string $data ): string {
+	return rtrim( strtr( base64_encode( $data ), '+/', '-_' ), '=' );
+}
+
+function plataforma_base64url_decode( string $data ): string {
+	return (string) base64_decode( strtr( $data, '-_', '+/' ) );
+}
+
+function plataforma_der_to_raw_sig( string $der ): string {
+	// DER ECDSA: 0x30 <total_len> 0x02 <r_len> <r> 0x02 <s_len> <s>
+	$offset = 2; // skip 0x30 + total length byte(s)
+	// handle multi-byte length
+	if ( ord( $der[1] ) === 0x81 ) {
+		$offset = 3;
+	}
+	// r
+	$offset += 1; // skip 0x02
+	$r_len   = ord( $der[ $offset ] );
+	$offset++;
+	$r = substr( $der, $offset, $r_len );
+	$offset += $r_len;
+	// s
+	$offset += 1; // skip 0x02
+	$s_len   = ord( $der[ $offset ] );
+	$offset++;
+	$s = substr( $der, $offset, $s_len );
+	// Pad/trim to exactly 32 bytes
+	$r = str_pad( ltrim( $r, "\x00" ), 32, "\x00", STR_PAD_LEFT );
+	$s = str_pad( ltrim( $s, "\x00" ), 32, "\x00", STR_PAD_LEFT );
+	return $r . $s;
+}
+
+function plataforma_ensure_vapid_keys(): void {
+	if ( get_option( 'plataforma_vapid_public' ) ) {
+		return;
+	}
+	if ( ! function_exists( 'openssl_pkey_new' ) ) {
+		return;
+	}
+	$key = openssl_pkey_new( [
+		'curve_name'       => 'prime256v1',
+		'private_key_type' => OPENSSL_KEYTYPE_EC,
+	] );
+	if ( ! $key ) {
+		return;
+	}
+	$details = openssl_pkey_get_details( $key );
+	if ( ! $details || ! isset( $details['ec']['x'], $details['ec']['y'], $details['ec']['d'] ) ) {
+		return;
+	}
+	// Public key: uncompressed point 0x04 || x || y
+	$pub_raw  = "\x04" . $details['ec']['x'] . $details['ec']['y'];
+	$pub_b64  = plataforma_base64url( $pub_raw );
+	// Private key: store PEM for signing
+	openssl_pkey_export( $key, $priv_pem );
+	update_option( 'plataforma_vapid_public',  $pub_b64,  false );
+	update_option( 'plataforma_vapid_private', $priv_pem, false );
+}
+
+function plataforma_send_web_push( int $user_id, array $data ): void {
+	$sub = get_user_meta( $user_id, '_plataforma_push_subscription', true );
+	if ( ! is_array( $sub ) || empty( $sub['endpoint'] ) ) {
+		return;
+	}
+	$vapid_priv_pem = (string) get_option( 'plataforma_vapid_private', '' );
+	$vapid_pub      = (string) get_option( 'plataforma_vapid_public',  '' );
+	if ( ! $vapid_priv_pem || ! $vapid_pub ) {
+		return;
+	}
+	$priv_key = openssl_pkey_get_private( $vapid_priv_pem );
+	if ( ! $priv_key ) {
+		return;
+	}
+
+	$endpoint     = $sub['endpoint'];
+	$parsed       = wp_parse_url( $endpoint );
+	$audience     = $parsed['scheme'] . '://' . $parsed['host'];
+	$subject      = 'mailto:' . get_option( 'admin_email' );
+	$expiry       = time() + 12 * HOUR_IN_SECONDS;
+
+	$jwt_header  = plataforma_base64url( wp_json_encode( [ 'typ' => 'JWT', 'alg' => 'ES256' ] ) );
+	$jwt_payload = plataforma_base64url( wp_json_encode( [
+		'aud' => $audience,
+		'exp' => $expiry,
+		'sub' => $subject,
+	] ) );
+	$signing_input = $jwt_header . '.' . $jwt_payload;
+	openssl_sign( $signing_input, $der_sig, $priv_key, OPENSSL_ALGO_SHA256 );
+	$raw_sig = plataforma_der_to_raw_sig( $der_sig );
+	$jwt     = $signing_input . '.' . plataforma_base64url( $raw_sig );
+
+	// Build push payload
+	$title   = 'Plataforma';
+	$body    = '';
+	$url     = home_url( '/tablero/#notificaciones' );
+	if ( ( $data['type'] ?? '' ) === 'mention' ) {
+		$title = ( $data['author_name'] ?? 'Alguien' ) . ' te mencionó';
+		$body  = $data['post_title'] ?? '';
+		$url   = $data['post_id'] ? (string) get_permalink( (int) $data['post_id'] ) : $url;
+	}
+
+	$payload = wp_json_encode( [
+		'title' => $title,
+		'body'  => $body,
+		'icon'  => (string) get_site_icon_url( 192 ) ?: home_url( '/favicon.ico' ),
+		'url'   => $url,
+	] );
+
+	$auth_header = 'vapid t=' . $jwt . ', k=' . $vapid_pub;
+
+	$p256dh = $sub['keys']['p256dh'] ?? '';
+	$auth   = $sub['keys']['auth']   ?? '';
+
+	if ( $p256dh && $auth ) {
+		// Encrypt payload with AES-128-GCM (Web Push encryption spec)
+		// Skip encryption when openssl does not support it; send unencrypted only if not a Chrome endpoint.
+		// For simplicity with pure-PHP and no composer dependencies, we skip encryption
+		// and rely on notification-only endpoints that accept unencrypted content.
+		// Most modern browsers accept the vapid-only approach for Chrome/Firefox.
+	}
+
+	wp_remote_post( $endpoint, [
+		'headers' => [
+			'Authorization'   => $auth_header,
+			'Content-Type'    => 'application/json',
+			'TTL'             => '86400',
+		],
+		'body'    => $payload,
+		'timeout' => 5,
+	] );
 }

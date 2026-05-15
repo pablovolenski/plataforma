@@ -6,9 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
   initCharCounters();
   initComposerPanel();
   initComposeForm();
+  initMentions();
   initLoginModal();
   initLoginPage();
   initDashboardTabs();
+  initNotificaciones();
+  initAgendaCalendar();
+  initPushNotifications();
   initProfileForm();
   initShare();
   initPersonasFilters();
@@ -267,6 +271,12 @@ function initComposeForm() {
     body.append('post_excerpt', form.querySelector('[name="post_excerpt"]')?.value.trim() ?? '');
     body.append('post_content', form.querySelector('[name="post_content"]').value.trim());
     checkedCats.forEach((id) => body.append('post_categories[]', id));
+
+    // @mention: send mentioned user IDs
+    const editorEl = form.querySelector('#compose-editor');
+    if (editorEl?._mentionedUsers) {
+      editorEl._mentionedUsers.forEach((uid) => body.append('mentioned_users[]', uid));
+    }
 
     // Include event fields when Eventos category is selected
     if (eventFields && !eventFields.hidden) {
@@ -949,6 +959,414 @@ function initPersonasFilters() {
       });
     });
   });
+}
+
+// ---------------------------------------------------------------------------
+// @Mention autocomplete in the compose editor
+// ---------------------------------------------------------------------------
+
+function initMentions() {
+  const editor = document.getElementById('compose-editor');
+  if (!editor) return;
+
+  const mentionedUsers = new Set();
+  editor._mentionedUsers = mentionedUsers;
+
+  let mentionList   = null;
+  let activeQuery   = '';
+  let debounceTimer = null;
+  let mentionResults = [];
+  let activeIndex   = -1;
+
+  function getMentionMatch() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.startContainer)) return null;
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return null;
+    const text = node.textContent.slice(0, range.startOffset);
+    const match = text.match(/@(\w{0,30})$/);
+    return match ? { query: match[1], node, offset: range.startOffset } : null;
+  }
+
+  function getMentionRange(match) {
+    const mentionRange = document.createRange();
+    mentionRange.setStart(match.node, match.offset - match.query.length - 1); // include @
+    mentionRange.setEnd(match.node, match.offset);
+    return mentionRange;
+  }
+
+  function showList(results) {
+    mentionResults = results;
+    activeIndex   = 0;
+
+    if (!mentionList) {
+      mentionList = document.createElement('ul');
+      mentionList.className = 'mention-list';
+      mentionList.setAttribute('role', 'listbox');
+      document.body.appendChild(mentionList);
+    }
+
+    mentionList.innerHTML = '';
+
+    if (!results.length) { hideList(); return; }
+
+    results.forEach((user, i) => {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+      li.innerHTML =
+        `<img src="${escHtml(user.avatar)}" alt="" width="28" height="28" class="mention-list__avatar">` +
+        `<span class="mention-list__name">${escHtml(user.name)}</span>`;
+      li.addEventListener('mousedown', (e) => { e.preventDefault(); selectMention(user); });
+      mentionList.appendChild(li);
+    });
+
+    const match = getMentionMatch();
+    if (match) {
+      const rect = getMentionRange(match).getBoundingClientRect();
+      mentionList.style.top  = `${rect.bottom + window.scrollY + 4}px`;
+      mentionList.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - 220)}px`;
+    }
+    mentionList.hidden = false;
+    highlightActive();
+  }
+
+  function highlightActive() {
+    if (!mentionList) return;
+    mentionList.querySelectorAll('li').forEach((li, i) => {
+      li.classList.toggle('is-active', i === activeIndex);
+    });
+  }
+
+  function hideList() {
+    if (mentionList) mentionList.hidden = true;
+    activeQuery   = '';
+    mentionResults = [];
+    activeIndex   = -1;
+  }
+
+  function selectMention(user) {
+    const match = getMentionMatch();
+    if (!match) { hideList(); return; }
+
+    const range = getMentionRange(match);
+    range.deleteContents();
+
+    const span = document.createElement('span');
+    span.className = 'mention';
+    span.dataset.uid = user.id;
+    span.contentEditable = 'false';
+    span.textContent = `@${user.name}`;
+    range.insertNode(span);
+
+    const space = document.createTextNode(' ');
+    span.after(space);
+    const sel = window.getSelection();
+    const newRange = document.createRange();
+    newRange.setStartAfter(space);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    mentionedUsers.add(Number(user.id));
+    hideList();
+
+    const hidden = document.getElementById('compose-content-hidden');
+    if (hidden) {
+      const raw = editor.innerHTML;
+      hidden.value = (raw === '<br>' || raw === '') ? '' : raw;
+    }
+  }
+
+  editor.addEventListener('input', () => {
+    const match = getMentionMatch();
+    if (!match) { hideList(); return; }
+    const { query } = match;
+    if (query.length < 2) {
+      if (query.length === 0) hideList();
+      return;
+    }
+    if (query === activeQuery) return;
+    activeQuery = query;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      if (typeof PlataformaData === 'undefined') return;
+      try {
+        const url = `${PlataformaData.ajaxUrl}?action=plataforma_search_users&_wpnonce=${PlataformaData.postNonce}&q=${encodeURIComponent(query)}`;
+        const res  = await fetch(url);
+        const data = await res.json();
+        if (data.success) showList(data.data);
+      } catch { /* ignore */ }
+    }, 300);
+  });
+
+  editor.addEventListener('keydown', (e) => {
+    if (!mentionList || mentionList.hidden) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, mentionResults.length - 1);
+      highlightActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      highlightActive();
+    } else if ((e.key === 'Enter' || e.key === 'Tab') && mentionResults[activeIndex]) {
+      e.preventDefault();
+      selectMention(mentionResults[activeIndex]);
+    } else if (e.key === 'Escape') {
+      hideList();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (mentionList && !mentionList.contains(e.target) && e.target !== editor) {
+      hideList();
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Notifications — load, mark read, badge polling
+// ---------------------------------------------------------------------------
+
+function initNotificaciones() {
+  if (typeof PlataformaData === 'undefined' || !PlataformaData.isLoggedIn) return;
+  if (!document.querySelector('.tablero__tabs')) return; // only on /tablero/
+
+  const badge    = document.getElementById('notif-badge');
+  const pushBtn  = document.getElementById('enable-push-btn');
+  const pushStatus = document.getElementById('push-status');
+
+  async function fetchAndUpdate() {
+    try {
+      const url = `${PlataformaData.ajaxUrl}?action=plataforma_fetch_notifications&_wpnonce=${PlataformaData.notifNonce}`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (data.success && badge) {
+        const count = data.data.unread || 0;
+        badge.textContent = count > 9 ? '9+' : String(count);
+        badge.hidden = count === 0;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Mark notifications read when user opens the notificaciones tab
+  document.querySelectorAll('.tablero__tab[data-tab="notificaciones"]').forEach((tab) => {
+    tab.addEventListener('click', async () => {
+      if (badge) badge.hidden = true;
+      try {
+        const body = new URLSearchParams({
+          action:   'plataforma_mark_notifications_read',
+          _wpnonce: PlataformaData.notifNonce,
+        });
+        await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      } catch { /* ignore */ }
+    });
+  });
+
+  // Push notifications button
+  if (pushBtn) {
+    pushBtn.addEventListener('click', async () => {
+      if (!('serviceWorker' in navigator) || !PlataformaData.vapidPublicKey) {
+        if (pushStatus) { pushStatus.textContent = 'Las notificaciones push no están disponibles en este dispositivo.'; pushStatus.hidden = false; }
+        return;
+      }
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          if (pushStatus) { pushStatus.textContent = 'Permiso denegado. Actívalo en la configuración del navegador.'; pushStatus.hidden = false; }
+          return;
+        }
+        const vapidKey = urlBase64ToUint8Array(PlataformaData.vapidPublicKey);
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey });
+        const body = new URLSearchParams({
+          action:       'plataforma_save_push_subscription',
+          _wpnonce:     PlataformaData.notifNonce,
+          subscription: JSON.stringify(sub.toJSON()),
+        });
+        await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+        if (pushStatus) { pushStatus.textContent = '¡Notificaciones activadas!'; pushStatus.hidden = false; }
+        pushBtn.disabled = true;
+        pushBtn.textContent = 'Notificaciones activas';
+      } catch (err) {
+        if (pushStatus) { pushStatus.textContent = 'Error al activar notificaciones: ' + err.message; pushStatus.hidden = false; }
+      }
+    });
+  }
+
+  fetchAndUpdate();
+  setInterval(fetchAndUpdate, 60000);
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding  = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64   = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw      = window.atob(base64);
+  const out      = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Web Push — service worker registration (background, no UI)
+// ---------------------------------------------------------------------------
+
+async function initPushNotifications() {
+  if (typeof PlataformaData === 'undefined' || !PlataformaData.vapidPublicKey) return;
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      // Re-save subscription in case it changed (e.g. after browser update)
+      const body = new URLSearchParams({
+        action:       'plataforma_save_push_subscription',
+        _wpnonce:     PlataformaData.notifNonce,
+        subscription: JSON.stringify(existing.toJSON()),
+      });
+      fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+    }
+  } catch { /* ignore — not critical */ }
+}
+
+// ---------------------------------------------------------------------------
+// Agenda calendar — month view with admin events
+// ---------------------------------------------------------------------------
+
+function initAgendaCalendar() {
+  const container = document.getElementById('cal-month');
+  if (!container || typeof PlataformaData === 'undefined') return;
+
+  const grid    = document.getElementById('cal-grid');
+  const heading = document.getElementById('cal-heading');
+  const popup   = document.getElementById('cal-event-popup');
+  const popupTitle = document.getElementById('cal-popup-title');
+  const popupDate  = document.getElementById('cal-popup-date');
+  const popupDesc  = document.getElementById('cal-popup-desc');
+  const popupClose = document.getElementById('cal-popup-close');
+
+  let year  = parseInt(container.dataset.year,  10);
+  let month = parseInt(container.dataset.month, 10);
+
+  const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  async function fetchEvents(y, m) {
+    try {
+      const url = `${PlataformaData.ajaxUrl}?action=plataforma_fetch_calendar_events&_wpnonce=${PlataformaData.notifNonce}&year=${y}&month=${m}`;
+      const res  = await fetch(url);
+      const data = await res.json();
+      return data.success ? data.data : [];
+    } catch { return []; }
+  }
+
+  function showPopup(event, dayEl) {
+    if (!popup || !popupTitle || !popupDate || !popupDesc) return;
+    popupTitle.textContent = event.title;
+    popupDate.textContent  = formatEventDate(event.start_date, event.end_date);
+    popupDesc.textContent  = event.excerpt || '';
+    popup.hidden = false;
+    // Position relative to the day cell
+    const rect = dayEl.getBoundingClientRect();
+    popup.style.top  = `${rect.bottom + window.scrollY + 6}px`;
+    popup.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - 240)}px`;
+  }
+
+  function formatEventDate(start, end) {
+    if (!start) return '';
+    const s = new Date(start + 'T00:00:00');
+    const label = `${s.getDate()} ${MONTHS_ES[s.getMonth()]} ${s.getFullYear()}`;
+    if (end && end !== start) {
+      const e = new Date(end + 'T00:00:00');
+      return `${label} — ${e.getDate()} ${MONTHS_ES[e.getMonth()]} ${e.getFullYear()}`;
+    }
+    return label;
+  }
+
+  async function render() {
+    if (!grid || !heading) return;
+    heading.textContent = `${MONTHS_ES[month - 1]} ${year}`;
+    grid.innerHTML = '';
+    if (popup) popup.hidden = true;
+
+    const events = await fetchEvents(year, month);
+
+    // Build a map: date string → array of events
+    const eventMap = {};
+    events.forEach((ev) => {
+      const key = ev.start_date;
+      if (!eventMap[key]) eventMap[key] = [];
+      eventMap[key].push(ev);
+    });
+
+    const firstDay = new Date(year, month - 1, 1);
+    const totalDays = new Date(year, month, 0).getDate();
+    // Monday-first: 0=Mon … 6=Sun
+    const startDow = (firstDay.getDay() + 6) % 7;
+
+    // Empty cells before first day
+    for (let i = 0; i < startDow; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'cal-day cal-day--empty';
+      grid.appendChild(empty);
+    }
+
+    const today = new Date();
+    for (let d = 1; d <= totalDays; d++) {
+      const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dayEvents = eventMap[dateStr] || [];
+      const isToday = (today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === d);
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-day' +
+        (dayEvents.length ? ' cal-day--has-event' : '') +
+        (isToday ? ' cal-day--today' : '');
+
+      const num = document.createElement('span');
+      num.className = 'cal-day__num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (dayEvents.length) {
+        const dot = document.createElement('span');
+        dot.className = 'cal-day__dot';
+        dot.style.background = dayEvents[0].color || '#c0391c';
+        cell.appendChild(dot);
+        cell.style.cursor = 'pointer';
+        cell.addEventListener('click', () => showPopup(dayEvents[0], cell));
+      }
+
+      grid.appendChild(cell);
+    }
+  }
+
+  document.getElementById('cal-prev')?.addEventListener('click', () => {
+    month--;
+    if (month < 1) { month = 12; year--; }
+    render();
+  });
+
+  document.getElementById('cal-next')?.addEventListener('click', () => {
+    month++;
+    if (month > 12) { month = 1; year++; }
+    render();
+  });
+
+  if (popupClose) popupClose.addEventListener('click', () => { if (popup) popup.hidden = true; });
+
+  document.addEventListener('click', (e) => {
+    if (popup && !popup.hidden && !popup.contains(e.target) && !e.target.closest('.cal-day--has-event')) {
+      popup.hidden = true;
+    }
+  });
+
+  // Only load when the Agenda tab becomes visible
+  const agendaTab = document.querySelector('.tablero__tab[data-tab="agenda"]');
+  if (agendaTab) {
+    agendaTab.addEventListener('click', () => { render(); }, { once: true });
+  }
 }
 
 // ---------------------------------------------------------------------------
