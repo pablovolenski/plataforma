@@ -38,6 +38,15 @@ get_header();
 			Mis publicaciones
 		</button>
 		<button class="tablero__tab" role="tab"
+		        data-tab="notificaciones" aria-controls="tab-notificaciones" aria-selected="false">
+			Notificaciones
+			<span class="tab-badge" id="notif-badge" hidden></span>
+		</button>
+		<button class="tablero__tab" role="tab"
+		        data-tab="agenda" aria-controls="tab-agenda" aria-selected="false">
+			Agenda
+		</button>
+		<button class="tablero__tab" role="tab"
 		        data-tab="perfil" aria-controls="tab-perfil" aria-selected="false">
 			Mi Perfil
 		</button>
@@ -53,6 +62,14 @@ get_header();
 
 	<div id="tab-mis-publicaciones" class="tablero__panel" role="tabpanel" hidden>
 		<?php get_template_part( 'template-parts/tablero-mis-publicaciones' ); ?>
+	</div>
+
+	<div id="tab-notificaciones" class="tablero__panel" role="tabpanel" hidden>
+		<?php get_template_part( 'template-parts/tablero-notificaciones' ); ?>
+	</div>
+
+	<div id="tab-agenda" class="tablero__panel" role="tabpanel" hidden>
+		<?php get_template_part( 'template-parts/tablero-agenda' ); ?>
 	</div>
 
 	<div id="tab-perfil" class="tablero__panel" role="tabpanel" hidden>

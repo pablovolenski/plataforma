@@ -942,10 +942,15 @@ a.group-pill:hover {
   overflow: hidden; /* clip cover image to rounded corners */
 }
 
-/* Cover image (featured) bleeds to edges of the card */
+/* Remove top padding when the card opens with a cover image */
+.article-card--has-cover {
+  padding-top: 0;
+}
+
+/* Cover image bleeds to the left/right edges and top of the card */
 .article-card__cover-link {
   display: block;
-  margin: -22px -24px 16px;
+  margin: 0 -24px 16px;
 }
 
 .article-card__cover {
@@ -953,6 +958,7 @@ a.group-pill:hover {
   width: 100%;
   height: 220px;
   object-fit: cover;
+  /* border-radius top-corners match the card; overflow:hidden on .article-card clips it */
 }
 
 .article-card:hover {
@@ -2736,11 +2742,11 @@ a.group-pill:hover {
 }
 
 .article-card--event .article-card__cover-link {
-  margin: -18px -22px 14px;
+  margin: 0 -24px 14px;
 }
 
 .article-card--event .article-card__cover {
-  height: 140px; /* smaller cover for events to keep them compact */
+  height: 160px;
 }
 
 .article-card--event .article-card__head {
@@ -2796,45 +2802,31 @@ a.group-pill:hover {
 }
 
 /* Add-to-Calendar trigger button — prominent CTA inside event cards */
+/* "Add to calendar" — compact icon-only circle in the card footer */
 .atcb-trigger {
-  display: flex;
-  width: 100%;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  padding: 13px 22px;
-  font: inherit;
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: #ffffff;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  flex-shrink: 0;
   background: var(--brand, #c0391c);
-  border: 1.5px solid var(--brand, #c0391c);
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 2px 10px rgba(192, 57, 28, 0.25);
+  border: none;
+  border-radius: 50%;
   cursor: pointer;
-  transition: background 140ms ease, transform 100ms ease, box-shadow 140ms ease;
+  box-shadow: 0 2px 8px rgba(192, 57, 28, 0.22);
+  transition: background 140ms ease, transform 100ms ease;
 }
 
 .atcb-trigger:hover,
 .atcb-trigger:focus-visible {
   background: var(--brand-dark, #9a2a0f);
-  border-color: var(--brand-dark, #9a2a0f);
-  box-shadow: 0 4px 16px rgba(192, 57, 28, 0.35);
   transform: translateY(-1px);
   outline: none;
 }
 
-.atcb-trigger:active {
-  transform: translateY(0);
-}
-
-/* Old prominent dropdown — kept for backwards compat with anywhere still using it */
-.cal-dropdown--prominent {
-  display: block;
-  margin: 0 0 14px;
-}
+.atcb-trigger:active { transform: translateY(0); }
 
 .cal-dropdown--prominent .cal-dropdown__toggle {
   width: 100%;
@@ -2862,4 +2854,348 @@ a.group-pill:hover {
   left: 50%;
   transform: translateX(-50%);
   min-width: 240px;
+}
+
+/* =========================================================
+   @Mention autocomplete dropdown
+   ========================================================= */
+
+.mention-list {
+  position: absolute;
+  z-index: 9000;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #c2a89f);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow, 0 2px 16px rgba(60,20,10,0.09));
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.mention-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text, #1a0d09);
+  transition: background 120ms ease;
+}
+
+.mention-list li:hover,
+.mention-list li.is-active {
+  background: var(--surface-soft, #f2ebe6);
+}
+
+.mention-list__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.mention-list__name {
+  font-weight: 600;
+}
+
+/* Inline mention span in the editor */
+.mention {
+  display: inline-block;
+  background: var(--brand-softer, #fdf1ed);
+  color: var(--brand, #c0391c);
+  border-radius: var(--radius-sm, 5px);
+  padding: 1px 5px;
+  font-weight: 700;
+  font-size: 0.92em;
+  user-select: none;
+  cursor: default;
+}
+
+/* =========================================================
+   Notification tab badge
+   ========================================================= */
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--brand, #c0391c);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  border-radius: 999px;
+  margin-left: 5px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* =========================================================
+   Notification list (tablero-notificaciones)
+   ========================================================= */
+
+.notif-panel {
+  padding: 6px 0;
+}
+
+.notif-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.notif-panel__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text, #1a0d09);
+  margin: 0;
+}
+
+.notif-panel__push-btn {
+  font-size: 0.82rem;
+  padding: 7px 14px;
+}
+
+.notif-panel__push-status {
+  font-size: 0.88rem;
+  color: var(--muted, #5c3d37);
+  margin: 0 0 12px;
+}
+
+.notif-panel__empty {
+  color: var(--subtle, #9a7870);
+  text-align: center;
+  padding: 40px 0;
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notif-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-light, #e0cec8);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow-sm, 0 1px 6px rgba(60,20,10,0.06));
+}
+
+.notif-card--unread {
+  background: var(--brand-softer, #fdf1ed);
+  border-color: var(--brand-soft, #fbe2db);
+}
+
+.notif-card__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  margin-top: 6px;
+}
+
+.notif-card--unread .notif-card__dot {
+  background: var(--brand, #c0391c);
+}
+
+.notif-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-card__message,
+a.notif-card__message {
+  display: block;
+  font-size: 0.93rem;
+  color: var(--text, #1a0d09);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.notif-card__message:hover {
+  color: var(--brand, #c0391c);
+}
+
+.notif-card__time {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--subtle, #9a7870);
+  margin-top: 4px;
+}
+
+/* =========================================================
+   Agenda calendar (tablero-agenda)
+   ========================================================= */
+
+.cal-month {
+  position: relative;
+}
+
+.cal-month__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.cal-month__nav-btn {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+}
+
+.cal-month__heading {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text, #1a0d09);
+  margin: 0;
+  min-width: 160px;
+  text-align: center;
+}
+
+.cal-month__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.cal-month__weekdays span {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--subtle, #9a7870);
+  padding: 4px 0;
+}
+
+.cal-month__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-day {
+  position: relative;
+  min-height: 44px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm, 5px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface, #fff);
+  border: 1px solid transparent;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.cal-day--empty {
+  background: transparent;
+}
+
+.cal-day--today .cal-day__num {
+  background: var(--brand, #c0391c);
+  color: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.cal-day--has-event {
+  background: var(--brand-softer, #fdf1ed);
+  border-color: var(--brand-soft, #fbe2db);
+}
+
+.cal-day--has-event:hover {
+  background: var(--brand-soft, #fbe2db);
+  border-color: var(--brand, #c0391c);
+}
+
+.cal-day__num {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text, #1a0d09);
+  line-height: 1;
+}
+
+.cal-day--empty .cal-day__num {
+  color: transparent;
+}
+
+.cal-day__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand, #c0391c);
+  flex-shrink: 0;
+}
+
+/* Event popup */
+.cal-event-popup {
+  position: absolute;
+  z-index: 200;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #c2a89f);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: var(--shadow, 0 2px 16px rgba(60,20,10,0.09));
+  padding: 18px 20px 16px;
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.cal-event-popup__close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  color: var(--subtle, #9a7870);
+  padding: 0;
+  line-height: 1;
+}
+
+.cal-event-popup__close:hover { color: var(--text, #1a0d09); }
+
+.cal-event-popup__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #1a0d09);
+  margin: 0 24px 6px 0;
+}
+
+.cal-event-popup__date {
+  font-size: 0.82rem;
+  color: var(--brand, #c0391c);
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.cal-event-popup__desc {
+  font-size: 0.88rem;
+  color: var(--muted, #5c3d37);
+  margin: 0;
+  line-height: 1.4;
 }
