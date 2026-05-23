@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAgendaCalendar();
   initPushNotifications();
   initProfileForm();
+  initContactForm();
   initShare();
   initPersonasFilters();
   initAtcbButtons();
@@ -1134,9 +1135,29 @@ function initNotificaciones() {
   if (typeof PlataformaData === 'undefined' || !PlataformaData.isLoggedIn) return;
   if (!document.querySelector('.tablero__tabs')) return; // only on /tablero/
 
-  const badge    = document.getElementById('notif-badge');
-  const pushBtn  = document.getElementById('enable-push-btn');
+  const badge      = document.getElementById('notif-badge');
+  const pushBtn    = document.getElementById('enable-push-btn');
   const pushStatus = document.getElementById('push-status');
+
+  // Determine push support once, update button visibility
+  const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  if (pushBtn) {
+    if (!pushSupported) {
+      pushBtn.hidden = true; // hide on unsupported browsers instead of showing error on load
+    } else if (!PlataformaData.vapidPublicKey) {
+      pushBtn.hidden = true; // keys not generated yet — admin hasn't visited wp-admin
+    } else {
+      // Check if already subscribed
+      navigator.serviceWorker.ready.then((reg) =>
+        reg.pushManager.getSubscription()
+      ).then((sub) => {
+        if (sub) {
+          pushBtn.disabled = true;
+          pushBtn.textContent = 'Notificaciones activas';
+        }
+      }).catch(() => {});
+    }
+  }
 
   async function fetchAndUpdate() {
     try {
@@ -1147,36 +1168,114 @@ function initNotificaciones() {
         const count = data.data.unread || 0;
         badge.textContent = count > 9 ? '9+' : String(count);
         badge.hidden = count === 0;
+        // Live-update notification list if panel is visible
+        renderNotifList(data.data.notifications || []);
       }
     } catch { /* ignore */ }
+  }
+
+  function renderNotifList(notifications) {
+    const list = document.getElementById('notif-list');
+    const empty = document.querySelector('.notif-panel__empty');
+    if (!list && !empty) return;
+
+    if (!notifications.length) {
+      if (list) list.remove();
+      if (!empty) {
+        const p = document.createElement('p');
+        p.className = 'notif-panel__empty';
+        p.textContent = 'No tienes notificaciones aún.';
+        document.querySelector('.notif-panel')?.appendChild(p);
+      }
+      return;
+    }
+
+    const container = list || (() => {
+      const el = document.createElement('ul');
+      el.className = 'notif-list';
+      el.id = 'notif-list';
+      document.querySelector('.notif-panel__empty')?.replaceWith(el);
+      return el;
+    })();
+
+    container.innerHTML = notifications.map((n) => {
+      const unread = !n.read;
+      const time   = n.created_at ? relativeTime(n.created_at) : '';
+      let message  = '';
+      let link     = '';
+
+      if (n.type === 'mention') {
+        message = escHtml(n.author_name || 'Alguien') + ' te mencionó' + (n.post_title ? ' en: ' + escHtml(n.post_title) : '');
+        link = n.post_id ? '#' : ''; // actual URL resolved server-side
+      } else if (n.type === 'comment') {
+        message = escHtml(n.author_name || 'Alguien') + ' comentó en: ' + escHtml(n.post_title || '');
+        link = n.post_id ? '#comments' : '';
+      } else {
+        message = escHtml(n.message || 'Nueva notificación');
+      }
+
+      const inner = link
+        ? `<a class="notif-card__message" href="${escHtml(link)}">${message}</a>`
+        : `<span class="notif-card__message">${message}</span>`;
+
+      return `<li class="notif-card${unread ? ' notif-card--unread' : ''}">
+        <span class="notif-card__dot" aria-hidden="true"></span>
+        <div class="notif-card__body">
+          ${inner}
+          ${time ? `<time class="notif-card__time">${time}</time>` : ''}
+        </div>
+      </li>`;
+    }).join('');
+  }
+
+  function relativeTime(mysqlDate) {
+    const diff = Math.floor((Date.now() - new Date(mysqlDate.replace(' ', 'T')).getTime()) / 1000);
+    if (diff < 60)   return 'hace un momento';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)} min`;
+    if (diff < 86400)return `hace ${Math.floor(diff / 3600)} h`;
+    return `hace ${Math.floor(diff / 86400)} d`;
   }
 
   // Mark notifications read when user opens the notificaciones tab
   document.querySelectorAll('.tablero__tab[data-tab="notificaciones"]').forEach((tab) => {
     tab.addEventListener('click', async () => {
-      if (badge) badge.hidden = true;
+      if (badge) { badge.textContent = ''; badge.hidden = true; }
       try {
         const body = new URLSearchParams({
           action:   'plataforma_mark_notifications_read',
           _wpnonce: PlataformaData.notifNonce,
         });
         await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+        // Clear unread styling on visible cards
+        document.querySelectorAll('.notif-card--unread').forEach((c) => {
+          c.classList.remove('notif-card--unread');
+        });
       } catch { /* ignore */ }
     });
   });
 
   // Push notifications button
-  if (pushBtn) {
+  if (pushBtn && pushSupported && PlataformaData.vapidPublicKey) {
     pushBtn.addEventListener('click', async () => {
-      if (!('serviceWorker' in navigator) || !PlataformaData.vapidPublicKey) {
-        if (pushStatus) { pushStatus.textContent = 'Las notificaciones push no están disponibles en este dispositivo.'; pushStatus.hidden = false; }
+      pushBtn.disabled = true;
+      pushBtn.textContent = 'Activando…';
+      if (pushStatus) pushStatus.hidden = true;
+
+      if (!window.isSecureContext) {
+        if (pushStatus) { pushStatus.textContent = 'Las notificaciones push requieren HTTPS. Usa la dirección segura del sitio.'; pushStatus.hidden = false; }
+        pushBtn.disabled = false;
+        pushBtn.textContent = 'Activar notificaciones en este dispositivo';
         return;
       }
+
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js');
+        const reg  = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready; // wait until SW is active
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
           if (pushStatus) { pushStatus.textContent = 'Permiso denegado. Actívalo en la configuración del navegador.'; pushStatus.hidden = false; }
+          pushBtn.disabled = false;
+          pushBtn.textContent = 'Activar notificaciones en este dispositivo';
           return;
         }
         const vapidKey = urlBase64ToUint8Array(PlataformaData.vapidPublicKey);
@@ -1187,11 +1286,13 @@ function initNotificaciones() {
           subscription: JSON.stringify(sub.toJSON()),
         });
         await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
-        if (pushStatus) { pushStatus.textContent = '¡Notificaciones activadas!'; pushStatus.hidden = false; }
-        pushBtn.disabled = true;
+        if (pushStatus) { pushStatus.textContent = '¡Notificaciones push activadas!'; pushStatus.hidden = false; }
         pushBtn.textContent = 'Notificaciones activas';
       } catch (err) {
-        if (pushStatus) { pushStatus.textContent = 'Error al activar notificaciones: ' + err.message; pushStatus.hidden = false; }
+        const msg = err.message || String(err);
+        if (pushStatus) { pushStatus.textContent = 'No se pudo activar: ' + msg; pushStatus.hidden = false; }
+        pushBtn.disabled = false;
+        pushBtn.textContent = 'Activar notificaciones en este dispositivo';
       }
     });
   }
@@ -1485,6 +1586,59 @@ function initShare() {
         confirm();
       }
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Contact form — send message to a department via AJAX
+// ---------------------------------------------------------------------------
+
+function initContactForm() {
+  const form   = document.getElementById('contact-form');
+  const notice = document.getElementById('contact-notice');
+  if (!form || typeof PlataformaData === 'undefined') return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const recipient = form.querySelector('[name="recipient"]').value;
+    const subject   = form.querySelector('[name="subject"]').value.trim();
+    const message   = form.querySelector('[name="message"]').value.trim();
+
+    if (!recipient || !subject || !message) {
+      showNotice(notice, 'Completa todos los campos antes de enviar.', 'error');
+      return;
+    }
+
+    const btn  = form.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.disabled    = true;
+    btn.textContent = 'Enviando…';
+
+    const nonce = form.querySelector('[name="_wpnonce"]')?.value || PlataformaData.contactNonce;
+    const body  = new URLSearchParams({
+      action:    'plataforma_send_contact_message',
+      _wpnonce:  nonce,
+      recipient,
+      subject,
+      message,
+    });
+
+    try {
+      const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body });
+      const data = await res.json();
+      if (data.success) {
+        showNotice(notice, data.data?.message || 'Mensaje enviado.', 'success');
+        form.reset();
+      } else {
+        showNotice(notice, data.data?.message || 'Error al enviar. Inténtalo de nuevo.', 'error');
+      }
+    } catch {
+      showNotice(notice, 'Error de red. Verifica tu conexión.', 'error');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = orig;
+    }
   });
 }
 
