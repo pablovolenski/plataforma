@@ -95,6 +95,10 @@ $cat_name   = $cat ? $cat->name : '';
 
 		<?php get_template_part( 'template-parts/share-bar', null, [ 'compact' => false ] ); ?>
 
+		<?php if ( comments_open() || get_comments_number() ) : ?>
+			<?php comments_template(); ?>
+		<?php endif; ?>
+
 		<a class="back-link" href="<?php echo esc_url( home_url( '/' ) ); ?>">
 			← Volver al muro
 		</a>

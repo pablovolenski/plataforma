@@ -154,3 +154,35 @@ add_filter( 'login_headertext', function() { return get_bloginfo( 'name' ); } );
 
 add_filter( 'excerpt_length', function() { return 35; } );
 add_filter( 'excerpt_more',   function() { return '…'; } );
+
+// ---------------------------------------------------------------------------
+// Comment list callback
+// ---------------------------------------------------------------------------
+
+function plataforma_render_comment( WP_Comment $comment, array $args, int $depth ): void {
+	?>
+	<li id="comment-<?php comment_ID(); ?>" <?php comment_class( 'comment-card' ); ?>>
+		<article class="comment-card__body">
+			<header class="comment-card__head">
+				<?php echo get_avatar( $comment, 40, '', '', [ 'class' => 'comment-card__avatar' ] ); ?>
+				<div class="comment-card__meta">
+					<span class="comment-card__author"><?php echo esc_html( get_comment_author( $comment ) ); ?></span>
+					<time class="comment-card__time" datetime="<?php comment_time( 'c' ); ?>">
+						<?php echo esc_html( get_comment_date( 'j M Y, H:i', $comment ) ); ?>
+					</time>
+				</div>
+			</header>
+			<div class="comment-card__content"><?php comment_text(); ?></div>
+			<footer class="comment-card__footer">
+				<?php
+				comment_reply_link( array_merge( $args, [
+					'depth'     => $depth,
+					'max_depth' => $args['max_depth'],
+					'reply_text'=> 'Responder',
+				] ), $comment );
+				?>
+			</footer>
+		</article>
+	<?php
+	// Closing </li> is provided by wp_list_comments
+}

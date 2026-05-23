@@ -3,7 +3,7 @@
  * Plugin Name: Plataforma Social
  * Plugin URI:  https://vielac.at
  * Description: Likes, categorías por defecto, redirección post-login para Plataforma.
- * Version:     1.8.0
+ * Version:     1.9.0
  * Author:      Plataforma
  * Text Domain: plataforma-social
  */
@@ -11,8 +11,11 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'PLATAFORMA_DB_VERSION' ) ) {
-	define( 'PLATAFORMA_DB_VERSION', '1.8.0' );
+	define( 'PLATAFORMA_DB_VERSION', '1.9.0' );
 }
+
+// Ensure VAPID keys exist on every admin visit (idempotent — bails if set)
+add_action( 'admin_init', 'plataforma_ensure_vapid_keys' );
 
 // Hide the frontend admin bar for all users — access WP admin via /wp-admin
 add_filter( 'show_admin_bar', '__return_false' );
@@ -250,11 +253,14 @@ function plataforma_groups_admin_page_html(): void {
 		update_option( 'plataforma_groups', $raw );
 		$maps_key_input = sanitize_text_field( wp_unslash( $_POST['plataforma_google_maps_key'] ?? '' ) );
 		update_option( 'plataforma_google_maps_key', $maps_key_input );
+		$contact_raw = sanitize_textarea_field( wp_unslash( $_POST['plataforma_contact_recipients'] ?? '' ) );
+		update_option( 'plataforma_contact_recipients', $contact_raw );
 		echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 	}
 
-	$current  = (string) get_option( 'plataforma_groups', '' );
-	$maps_key = (string) get_option( 'plataforma_google_maps_key', '' );
+	$current          = (string) get_option( 'plataforma_groups', '' );
+	$maps_key         = (string) get_option( 'plataforma_google_maps_key', '' );
+	$contact_current  = (string) get_option( 'plataforma_contact_recipients', '' );
 	?>
 	<div class="wrap">
 		<h1>Configuración de Plataforma</h1>
@@ -266,6 +272,13 @@ Mapa Textil | https://vielac.at/mapa-textil/
 Paseos Urbanos | /paseos-urbanos/</pre>
 		<p>El administrador asigna grupos a cada usuario desde su perfil de usuario.</p>
 
+		<h2 style="margin-top:28px;">Destinatarios del formulario de contacto</h2>
+		<p>Un destinatario por línea con formato <code>Nombre | email@dominio.com</code>:</p>
+		<pre style="font-size:13px;background:#f6f7f7;padding:8px 12px;display:inline-block;border-radius:4px;">Directorio | directorio@vienalatina.com
+Órgano de Mediación | mediacion@vienalatina.com
+Comisión de Admisión | admision@vienalatina.com</pre>
+		<p>Si se deja vacío se usan los valores predeterminados con <code>example@vienalatina.com</code>.</p>
+
 		<h2 style="margin-top:28px;">Google Maps API Key</h2>
 		<p>Necesaria para el autocompletado de lugares al crear eventos. <a href="https://developers.google.com/maps/documentation/places/web-service/get-api-key" target="_blank" rel="noopener">Obtener clave →</a></p>
 		<p>Si no se configura, el campo "Dónde" usará búsqueda por OpenStreetMap (sin clave).</p>
@@ -276,8 +289,16 @@ Paseos Urbanos | /paseos-urbanos/</pre>
 				<tr>
 					<th scope="row"><label for="plataforma_groups_text">Grupos</label></th>
 					<td>
-						<textarea id="plataforma_groups_text" name="plataforma_groups_text" rows="12"
+						<textarea id="plataforma_groups_text" name="plataforma_groups_text" rows="10"
 						          style="width:500px;max-width:100%;font-family:monospace;font-size:13px;"><?php echo esc_textarea( $current ); ?></textarea>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="plataforma_contact_recipients">Destinatarios de contacto</label></th>
+					<td>
+						<textarea id="plataforma_contact_recipients" name="plataforma_contact_recipients" rows="6"
+						          style="width:500px;max-width:100%;font-family:monospace;font-size:13px;"
+						          placeholder="Directorio | directorio@vienalatina.com"><?php echo esc_textarea( $contact_current ); ?></textarea>
 					</td>
 				</tr>
 				<tr>
@@ -797,6 +818,7 @@ function plataforma_localise_scripts(): void {
 		'loginNonce'     => wp_create_nonce( 'plataforma_login_nonce' ),
 		'profileNonce'   => wp_create_nonce( 'plataforma_profile_nonce' ),
 		'notifNonce'     => wp_create_nonce( 'plataforma_notif_nonce' ),
+		'contactNonce'   => wp_create_nonce( 'plataforma_contact_nonce' ),
 		'loginUrl'       => home_url( '/ingresar/' ),
 		'tableroUrl'     => home_url( '/tablero/' ),
 		'isLoggedIn'     => is_user_logged_in(),
@@ -804,6 +826,7 @@ function plataforma_localise_scripts(): void {
 		'userId'         => get_current_user_id(),
 		'mapsKey'        => $maps_key,
 		'vapidPublicKey' => (string) get_option( 'plataforma_vapid_public', '' ),
+		'isSecure'       => is_ssl(),
 	] );
 
 	// Enqueue Google Maps Places API when a key is configured and we might need autocomplete
@@ -1395,6 +1418,130 @@ function plataforma_push_notification( int $user_id, array $data ): void {
 	] ) );
 	update_user_meta( $user_id, '_plataforma_notifications', array_slice( $notifications, 0, 50 ) );
 	plataforma_send_web_push( $user_id, $data );
+}
+
+// Notify post authors when their post receives a new approved comment.
+add_action( 'wp_insert_comment',     'plataforma_notify_on_comment', 10, 2 );
+add_action( 'transition_comment_status', 'plataforma_notify_on_comment_approved', 10, 3 );
+
+function plataforma_notify_on_comment( int $comment_id, WP_Comment $comment ): void {
+	if ( (int) $comment->comment_approved !== 1 ) {
+		return; // pending — wait for approval
+	}
+	plataforma_dispatch_comment_notification( $comment );
+}
+
+function plataforma_notify_on_comment_approved( string $new, string $old, $comment ): void {
+	if ( $new !== 'approved' || $old === 'approved' || ! ( $comment instanceof WP_Comment ) ) {
+		return;
+	}
+	plataforma_dispatch_comment_notification( $comment );
+}
+
+function plataforma_dispatch_comment_notification( WP_Comment $comment ): void {
+	$post = get_post( (int) $comment->comment_post_ID );
+	if ( ! $post ) {
+		return;
+	}
+	$author_id = (int) $post->post_author;
+	$commenter_id = (int) $comment->user_id;
+	if ( ! $author_id || $author_id === $commenter_id ) {
+		return;
+	}
+	$commenter_name = $commenter_id ? get_the_author_meta( 'display_name', $commenter_id ) : $comment->comment_author;
+	plataforma_push_notification( $author_id, [
+		'type'          => 'comment',
+		'post_id'       => $post->ID,
+		'post_title'    => get_the_title( $post ),
+		'comment_id'    => (int) $comment->comment_ID,
+		'author_id'     => $commenter_id,
+		'author_name'   => $commenter_name ?: 'Alguien',
+	] );
+}
+
+// ---------------------------------------------------------------------------
+// Contact form recipients (admin-editable, used in tablero-mensajes)
+// ---------------------------------------------------------------------------
+
+function plataforma_get_contact_recipients(): array {
+	$raw = get_option( 'plataforma_contact_recipients', '' );
+	if ( ! $raw ) {
+		// Default: 3 sections all forwarding to example dummy
+		return [
+			[ 'id' => 'directorio',          'name' => 'Directorio',          'email' => 'example@vienalatina.com' ],
+			[ 'id' => 'organo-mediacion',    'name' => 'Órgano de Mediación', 'email' => 'example@vienalatina.com' ],
+			[ 'id' => 'comision-admision',   'name' => 'Comisión de Admisión','email' => 'example@vienalatina.com' ],
+		];
+	}
+	$lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
+	$out   = [];
+	foreach ( $lines as $line ) {
+		if ( ! str_contains( $line, '|' ) ) {
+			continue;
+		}
+		[ $name, $email ] = array_map( 'trim', explode( '|', $line, 2 ) );
+		if ( ! $name || ! is_email( $email ) ) {
+			continue;
+		}
+		$out[] = [
+			'id'    => sanitize_title( $name ),
+			'name'  => $name,
+			'email' => $email,
+		];
+	}
+	return $out;
+}
+
+// AJAX: send contact-form message
+add_action( 'wp_ajax_plataforma_send_contact_message', 'plataforma_ajax_send_contact_message' );
+
+function plataforma_ajax_send_contact_message(): void {
+	check_ajax_referer( 'plataforma_contact_nonce', '_wpnonce' );
+
+	$user = wp_get_current_user();
+	if ( ! $user || ! $user->ID ) {
+		wp_send_json_error( [ 'message' => 'Debes iniciar sesión.' ], 401 );
+	}
+
+	$recipient_id = sanitize_key( wp_unslash( $_POST['recipient'] ?? '' ) );
+	$subject      = sanitize_text_field( wp_unslash( $_POST['subject']   ?? '' ) );
+	$message      = sanitize_textarea_field( wp_unslash( $_POST['message'] ?? '' ) );
+
+	if ( ! $recipient_id || ! $subject || ! $message ) {
+		wp_send_json_error( [ 'message' => 'Todos los campos son obligatorios.' ], 422 );
+	}
+	if ( strlen( $message ) > 5000 || strlen( $subject ) > 200 ) {
+		wp_send_json_error( [ 'message' => 'Mensaje demasiado largo.' ], 422 );
+	}
+
+	$recipients = plataforma_get_contact_recipients();
+	$match      = null;
+	foreach ( $recipients as $r ) {
+		if ( $r['id'] === $recipient_id ) {
+			$match = $r;
+			break;
+		}
+	}
+	if ( ! $match ) {
+		wp_send_json_error( [ 'message' => 'Destinatario inválido.' ], 422 );
+	}
+
+	$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+	$body  = "De: {$user->display_name} <{$user->user_email}>\n";
+	$body .= "Sección: {$match['name']}\n\n";
+	$body .= $message;
+
+	$headers = [
+		'From: ' . $site_name . ' <' . get_option( 'admin_email' ) . '>',
+		'Reply-To: ' . $user->display_name . ' <' . $user->user_email . '>',
+	];
+
+	$sent = wp_mail( $match['email'], '[Plataforma · ' . $match['name'] . '] ' . $subject, $body, $headers );
+
+	if ( ! $sent ) {
+		wp_send_json_error( [ 'message' => 'No se pudo enviar el mensaje. Inténtalo más tarde.' ], 500 );
+	}
+	wp_send_json_success( [ 'message' => 'Mensaje enviado a ' . $match['name'] . '.' ] );
 }
 
 // AJAX: fetch current user's notifications

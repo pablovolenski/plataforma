@@ -30,10 +30,6 @@ get_header();
 			Mensajes
 		</button>
 		<button class="tablero__tab" role="tab"
-		        data-tab="publicar" aria-controls="tab-publicar" aria-selected="false">
-			Publicar
-		</button>
-		<button class="tablero__tab" role="tab"
 		        data-tab="mis-publicaciones" aria-controls="tab-mis-publicaciones" aria-selected="false">
 			Mis publicaciones
 		</button>
@@ -54,10 +50,6 @@ get_header();
 
 	<div id="tab-mensajes" class="tablero__panel" role="tabpanel">
 		<?php get_template_part( 'template-parts/tablero-mensajes' ); ?>
-	</div>
-
-	<div id="tab-publicar" class="tablero__panel" role="tabpanel" hidden>
-		<?php get_template_part( 'template-parts/tablero-publicar' ); ?>
 	</div>
 
 	<div id="tab-mis-publicaciones" class="tablero__panel" role="tabpanel" hidden>
