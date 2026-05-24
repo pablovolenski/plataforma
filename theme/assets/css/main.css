@@ -59,6 +59,13 @@ h1, h2, h3, h4 {
 
 button, input, select, textarea { font: inherit; }
 
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
@@ -815,6 +822,11 @@ a.group-pill:hover {
 
 /* Buttons */
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
   padding: 12px 26px;
   font-size: 1rem;
   font-weight: 700;
@@ -842,6 +854,11 @@ a.group-pill:hover {
 }
 
 .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
   padding: 11px 22px;
   font-size: 0.95rem;
   font-weight: 600;
@@ -2688,6 +2705,10 @@ a.group-pill:hover {
 }
 
 .mis-pubs__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   font-size: 0.85rem;
   font-weight: 600;
   padding: 7px 14px;
