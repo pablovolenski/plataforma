@@ -158,7 +158,10 @@ function plataforma_cal_event_meta_boxes(): void {
 function plataforma_cal_event_meta_box_html( WP_Post $post ): void {
 	wp_nonce_field( 'plataforma_cal_event_save', 'plataforma_cal_event_nonce' );
 	$start_date = (string) get_post_meta( $post->ID, '_cal_start_date', true );
+	$start_time = (string) get_post_meta( $post->ID, '_cal_start_time', true );
 	$end_date   = (string) get_post_meta( $post->ID, '_cal_end_date',   true );
+	$end_time   = (string) get_post_meta( $post->ID, '_cal_end_time',   true );
+	$location   = (string) get_post_meta( $post->ID, '_cal_location',   true );
 	$color      = (string) get_post_meta( $post->ID, '_cal_color',      true ) ?: '#c0391c';
 	?>
 	<p>
@@ -167,9 +170,25 @@ function plataforma_cal_event_meta_box_html( WP_Post $post ): void {
 		       value="<?php echo esc_attr( $start_date ); ?>" style="width:100%">
 	</p>
 	<p>
+		<label for="cal_start_time"><strong>Hora de inicio (opcional)</strong></label><br>
+		<input type="time" id="cal_start_time" name="cal_start_time"
+		       value="<?php echo esc_attr( $start_time ); ?>" style="width:100%">
+	</p>
+	<p>
 		<label for="cal_end_date"><strong>Fecha de fin (opcional)</strong></label><br>
 		<input type="date" id="cal_end_date" name="cal_end_date"
 		       value="<?php echo esc_attr( $end_date ); ?>" style="width:100%">
+	</p>
+	<p>
+		<label for="cal_end_time"><strong>Hora de fin (opcional)</strong></label><br>
+		<input type="time" id="cal_end_time" name="cal_end_time"
+		       value="<?php echo esc_attr( $end_time ); ?>" style="width:100%">
+	</p>
+	<p>
+		<label for="cal_location"><strong>Lugar (opcional)</strong></label><br>
+		<input type="text" id="cal_location" name="cal_location"
+		       value="<?php echo esc_attr( $location ); ?>" style="width:100%"
+		       placeholder="Ej: Naschmarkt, Wien">
 	</p>
 	<p>
 		<label for="cal_color"><strong>Color</strong></label><br>
@@ -193,7 +212,10 @@ function plataforma_cal_event_save_meta( int $post_id ): void {
 		return;
 	}
 	update_post_meta( $post_id, '_cal_start_date', sanitize_text_field( wp_unslash( $_POST['cal_start_date'] ?? '' ) ) );
+	update_post_meta( $post_id, '_cal_start_time', sanitize_text_field( wp_unslash( $_POST['cal_start_time'] ?? '' ) ) );
 	update_post_meta( $post_id, '_cal_end_date',   sanitize_text_field( wp_unslash( $_POST['cal_end_date']   ?? '' ) ) );
+	update_post_meta( $post_id, '_cal_end_time',   sanitize_text_field( wp_unslash( $_POST['cal_end_time']   ?? '' ) ) );
+	update_post_meta( $post_id, '_cal_location',   sanitize_text_field( wp_unslash( $_POST['cal_location']   ?? '' ) ) );
 	update_post_meta( $post_id, '_cal_color',      sanitize_hex_color( wp_unslash( $_POST['cal_color']      ?? '#c0391c' ) ) ?: '#c0391c' );
 }
 
@@ -1659,9 +1681,12 @@ function plataforma_ajax_fetch_calendar_events(): void {
 			'id'         => $p->ID,
 			'title'      => $p->post_title,
 			'start_date' => (string) get_post_meta( $p->ID, '_cal_start_date', true ),
+			'start_time' => (string) get_post_meta( $p->ID, '_cal_start_time', true ),
 			'end_date'   => (string) get_post_meta( $p->ID, '_cal_end_date',   true ),
+			'end_time'   => (string) get_post_meta( $p->ID, '_cal_end_time',   true ),
+			'location'   => (string) get_post_meta( $p->ID, '_cal_location',   true ),
 			'color'      => (string) get_post_meta( $p->ID, '_cal_color',      true ) ?: '#c0391c',
-			'excerpt'    => wp_trim_words( wp_strip_all_tags( $p->post_content ), 25 ),
+			'description'=> wp_strip_all_tags( $p->post_content ),
 		];
 	}, $posts );
 

@@ -3151,53 +3151,86 @@ a.notif-card__message:hover {
   flex-shrink: 0;
 }
 
-/* Event popup */
-.cal-event-popup {
-  position: absolute;
-  z-index: 200;
-  background: var(--surface, #fff);
-  border: 1.5px solid var(--border, #c2a89f);
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: var(--shadow, 0 2px 16px rgba(60,20,10,0.09));
-  padding: 18px 20px 16px;
-  min-width: 200px;
-  max-width: 280px;
+/* Event list — shown directly under the calendar grid */
+.cal-event-list {
+  margin-top: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.cal-event-popup__close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: none;
-  border: none;
-  font-size: 1.3rem;
-  cursor: pointer;
+.cal-event-list__empty,
+.cal-event-list__loading {
   color: var(--subtle, #9a7870);
-  padding: 0;
-  line-height: 1;
+  text-align: center;
+  font-size: 0.9rem;
+  padding: 24px 0;
+  margin: 0;
 }
 
-.cal-event-popup__close:hover { color: var(--text, #1a0d09); }
+.cal-event-item {
+  position: relative;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-light, #e0cec8);
+  border-left: 4px solid var(--cal-event-color, var(--brand, #c0391c));
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px 20px 16px;
+  box-shadow: var(--shadow-sm, 0 1px 6px rgba(60,20,10,0.06));
+  transition: box-shadow 160ms ease, transform 160ms ease, background 200ms ease;
+}
 
-.cal-event-popup__title {
-  font-size: 1rem;
+.cal-event-item--flash {
+  background: var(--brand-softer, #fdf1ed);
+  box-shadow: 0 0 0 3px var(--brand-soft, #fbe2db), var(--shadow, 0 2px 16px rgba(60,20,10,0.09));
+}
+
+.cal-event-item__date {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--cal-event-color, var(--brand, #c0391c));
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.cal-event-item__title {
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--text, #1a0d09);
-  margin: 0 24px 6px 0;
+  margin: 0 0 6px;
+  line-height: 1.3;
 }
 
-.cal-event-popup__date {
-  font-size: 0.82rem;
-  color: var(--brand, #c0391c);
-  font-weight: 600;
+.cal-event-item__location {
+  font-size: 0.85rem;
+  color: var(--muted, #5c3d37);
   margin: 0 0 8px;
 }
 
-.cal-event-popup__desc {
-  font-size: 0.88rem;
+.cal-event-item__desc {
+  font-size: 0.92rem;
   color: var(--muted, #5c3d37);
-  margin: 0;
-  line-height: 1.4;
+  line-height: 1.5;
+  margin: 6px 0 14px;
+}
+
+.cal-event-item__atcb {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--cal-event-color, var(--brand, #c0391c));
+  background: transparent;
+  border: 1.5px solid var(--cal-event-color, var(--brand, #c0391c));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 130ms ease, color 130ms ease;
+}
+
+.cal-event-item__atcb:hover {
+  background: var(--cal-event-color, var(--brand, #c0391c));
+  color: #fff;
 }
 
 /* =========================================================
@@ -3587,7 +3620,9 @@ a.notif-card__message:hover {
   .cal-month__nav-btn { padding: 6px 8px; }
   .cal-day { min-height: 36px; padding: 4px 2px; }
   .cal-day__num { font-size: 0.75rem; }
-  .cal-event-popup { max-width: calc(100vw - 40px); left: 20px !important; }
+  .cal-event-item { padding: 14px 16px 14px; }
+  .cal-event-item__date { font-size: 0.95rem; }
+  .cal-event-item__title { font-size: 1.02rem; }
 }
 
 /* Site bar: prevent overflow on very narrow screens */
