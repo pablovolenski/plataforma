@@ -3234,24 +3234,22 @@ a.notif-card__message:hover {
   margin: 6px 0 14px;
 }
 
-.cal-event-item__atcb {
-  display: inline-flex;
+.cal-event-item__footer {
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--cal-event-color, var(--brand, #c0391c));
-  background: transparent;
-  border: 1.5px solid var(--cal-event-color, var(--brand, #c0391c));
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 130ms ease, color 130ms ease;
+  margin-top: 12px;
 }
 
-.cal-event-item__atcb:hover {
+.cal-event-item__footer .atcb-trigger {
   background: var(--cal-event-color, var(--brand, #c0391c));
-  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.cal-event-item__footer .atcb-trigger:hover,
+.cal-event-item__footer .atcb-trigger:focus-visible {
+  filter: brightness(0.92);
+  background: var(--cal-event-color, var(--brand, #c0391c));
 }
 
 /* =========================================================
