@@ -1,7 +1,7 @@
 <?php
 /**
- * Template part: Agenda calendar tab in Mi Espacio.
- * The JS function initAgendaCalendar() populates the grid.
+ * Template part: Calendario tab in Mi Espacio.
+ * The JS function initAgendaCalendar() populates the grid and the event list.
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,10 +36,5 @@ $month = (int) date( 'm', $now );
 
 	<div class="cal-month__grid" id="cal-grid" aria-live="polite"></div>
 
-	<div class="cal-event-popup" id="cal-event-popup" hidden role="dialog" aria-modal="false" aria-label="Detalles del evento">
-		<button type="button" class="cal-event-popup__close" id="cal-popup-close" aria-label="Cerrar">×</button>
-		<h3 class="cal-event-popup__title" id="cal-popup-title"></h3>
-		<p  class="cal-event-popup__date"  id="cal-popup-date"></p>
-		<p  class="cal-event-popup__desc"  id="cal-popup-desc"></p>
-	</div>
+	<div class="cal-event-list" id="cal-event-list" aria-live="polite"></div>
 </div>

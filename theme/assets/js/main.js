@@ -1340,13 +1340,9 @@ function initAgendaCalendar() {
   const container = document.getElementById('cal-month');
   if (!container || typeof PlataformaData === 'undefined') return;
 
-  const grid    = document.getElementById('cal-grid');
-  const heading = document.getElementById('cal-heading');
-  const popup   = document.getElementById('cal-event-popup');
-  const popupTitle = document.getElementById('cal-popup-title');
-  const popupDate  = document.getElementById('cal-popup-date');
-  const popupDesc  = document.getElementById('cal-popup-desc');
-  const popupClose = document.getElementById('cal-popup-close');
+  const grid     = document.getElementById('cal-grid');
+  const heading  = document.getElementById('cal-heading');
+  const listRoot = document.getElementById('cal-event-list');
 
   let year  = parseInt(container.dataset.year,  10);
   let month = parseInt(container.dataset.month, 10);
@@ -1363,34 +1359,108 @@ function initAgendaCalendar() {
     } catch { return []; }
   }
 
-  function showPopup(event, dayEl) {
-    if (!popup || !popupTitle || !popupDate || !popupDesc) return;
-    popupTitle.textContent = event.title;
-    popupDate.textContent  = formatEventDate(event.start_date, event.end_date);
-    popupDesc.textContent  = event.excerpt || '';
-    popup.hidden = false;
-    // Position relative to the day cell
-    const rect = dayEl.getBoundingClientRect();
-    popup.style.top  = `${rect.bottom + window.scrollY + 6}px`;
-    popup.style.left = `${Math.min(rect.left + window.scrollX, window.innerWidth - 240)}px`;
-  }
-
-  function formatEventDate(start, end) {
-    if (!start) return '';
-    const s = new Date(start + 'T00:00:00');
-    const label = `${s.getDate()} ${MONTHS_ES[s.getMonth()]} ${s.getFullYear()}`;
-    if (end && end !== start) {
-      const e = new Date(end + 'T00:00:00');
-      return `${label} — ${e.getDate()} ${MONTHS_ES[e.getMonth()]} ${e.getFullYear()}`;
+  // "26 Mayo 2026, 19:30" or "26 Mayo 2026" if no time
+  function formatBigDate(ev) {
+    if (!ev.start_date) return '';
+    const [y, m, d] = ev.start_date.split('-').map(Number);
+    const monthName = MONTHS_ES[m - 1];
+    let label = `${d} ${monthName} ${y}`;
+    if (ev.start_time) label += `, ${ev.start_time.slice(0, 5)}`;
+    if (ev.end_date && ev.end_date !== ev.start_date) {
+      const [ey, em, ed] = ev.end_date.split('-').map(Number);
+      label += ` — ${ed} ${MONTHS_ES[em - 1]} ${ey}`;
+      if (ev.end_time) label += `, ${ev.end_time.slice(0, 5)}`;
+    } else if (ev.end_time && ev.end_time !== ev.start_time) {
+      label += ` — ${ev.end_time.slice(0, 5)}`;
     }
     return label;
+  }
+
+  function buildAtcbConfig(ev) {
+    const startDate = ev.start_date;
+    const startTime = ev.start_time ? ev.start_time.slice(0, 5) : '';
+    const endDate   = ev.end_date || ev.start_date;
+    const endTime   = ev.end_time ? ev.end_time.slice(0, 5)
+                    : (startTime ? addOneHour(startTime) : '');
+
+    const cfg = {
+      name:        ev.title,
+      description: ev.description || '',
+      startDate,
+      endDate,
+      timeZone:    'Europe/Vienna',
+      listStyle:   'dropdown',
+      options:     ['Apple', 'Google', 'iCal', 'Outlook.com'],
+      iCalFileName: (ev.title || 'evento').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    };
+    if (startTime) { cfg.startTime = startTime; cfg.endTime = endTime; }
+    if (ev.location) cfg.location = ev.location;
+    return cfg;
+  }
+
+  function addOneHour(hhmm) {
+    const [h, m] = hhmm.split(':').map(Number);
+    const total = (h * 60 + m + 60) % (24 * 60);
+    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  function renderEventList(events) {
+    if (!listRoot) return;
+    if (!events.length) {
+      listRoot.innerHTML = '<p class="cal-event-list__empty">No hay eventos este mes.</p>';
+      return;
+    }
+    listRoot.innerHTML = events.map((ev) => {
+      const atcbJson = JSON.stringify(buildAtcbConfig(ev)).replace(/"/g, '&quot;');
+      const location = ev.location ? `<p class="cal-event-item__location">📍 ${escHtml(ev.location)}</p>` : '';
+      const desc     = ev.description ? `<p class="cal-event-item__desc">${escHtml(ev.description)}</p>` : '';
+      return `
+        <article class="cal-event-item" style="--cal-event-color:${escHtml(ev.color || '#c0391c')}">
+          <div class="cal-event-item__date">${escHtml(formatBigDate(ev))}</div>
+          <h3 class="cal-event-item__title">${escHtml(ev.title)}</h3>
+          ${location}
+          ${desc}
+          <button type="button" class="cal-event-item__atcb atcb-trigger" data-atcb="${atcbJson}" aria-label="Guardar en calendario">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+              <rect x="2" y="4" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M2 9h16" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M6.5 2v4M13.5 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <circle cx="19" cy="19" r="4" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M19 16.8v4.4M16.8 19h4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <span>Guardar en calendario</span>
+          </button>
+        </article>
+      `;
+    }).join('');
+
+    // Wire up atcb buttons in the rendered list
+    listRoot.querySelectorAll('.atcb-trigger[data-atcb]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof window.atcb_action !== 'function') return;
+        try {
+          const cfg = JSON.parse(btn.dataset.atcb);
+          window.atcb_action(cfg, btn);
+        } catch { /* invalid config */ }
+      });
+    });
+  }
+
+  function scrollToEvent(eventId) {
+    const el = listRoot?.querySelector(`[data-event-id="${eventId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    el.classList.add('cal-event-item--flash');
+    setTimeout(() => el.classList.remove('cal-event-item--flash'), 1200);
   }
 
   async function render() {
     if (!grid || !heading) return;
     heading.textContent = `${MONTHS_ES[month - 1]} ${year}`;
     grid.innerHTML = '';
-    if (popup) popup.hidden = true;
+    if (listRoot) listRoot.innerHTML = '<p class="cal-event-list__loading">Cargando…</p>';
 
     const events = await fetchEvents(year, month);
 
@@ -1436,11 +1506,19 @@ function initAgendaCalendar() {
         dot.style.background = dayEvents[0].color || '#c0391c';
         cell.appendChild(dot);
         cell.style.cursor = 'pointer';
-        cell.addEventListener('click', () => showPopup(dayEvents[0], cell));
+        cell.addEventListener('click', () => scrollToEvent(dayEvents[0].id));
       }
 
       grid.appendChild(cell);
     }
+
+    renderEventList(events);
+
+    // After list is rendered, add data-event-id for the scrollToEvent lookup
+    const items = listRoot ? listRoot.querySelectorAll('.cal-event-item') : [];
+    events.forEach((ev, i) => {
+      if (items[i]) items[i].dataset.eventId = ev.id;
+    });
   }
 
   document.getElementById('cal-prev')?.addEventListener('click', () => {
@@ -1455,15 +1533,7 @@ function initAgendaCalendar() {
     render();
   });
 
-  if (popupClose) popupClose.addEventListener('click', () => { if (popup) popup.hidden = true; });
-
-  document.addEventListener('click', (e) => {
-    if (popup && !popup.hidden && !popup.contains(e.target) && !e.target.closest('.cal-day--has-event')) {
-      popup.hidden = true;
-    }
-  });
-
-  // Only load when the Agenda tab becomes visible
+  // Load when the Calendario tab becomes visible
   const agendaTab = document.querySelector('.tablero__tab[data-tab="agenda"]');
   if (agendaTab) {
     agendaTab.addEventListener('click', () => { render(); }, { once: true });

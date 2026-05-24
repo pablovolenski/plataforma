@@ -40,7 +40,7 @@ get_header();
 		</button>
 		<button class="tablero__tab" role="tab"
 		        data-tab="agenda" aria-controls="tab-agenda" aria-selected="false">
-			Agenda
+			Calendario
 		</button>
 		<button class="tablero__tab" role="tab"
 		        data-tab="perfil" aria-controls="tab-perfil" aria-selected="false">
