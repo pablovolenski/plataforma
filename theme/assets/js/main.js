@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAtcbButtons();
   initMisPublicaciones();
   initHamburger();
+  initTranslator();
 });
 
 // ---------------------------------------------------------------------------
@@ -1741,5 +1742,93 @@ function initHamburger() {
       btn.setAttribute('aria-expanded', 'false');
       btn.setAttribute('aria-label', 'Abrir navegación');
     }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// GDPR-friendly page translator — DeepL server-side proxy
+// ---------------------------------------------------------------------------
+
+function initTranslator() {
+  const allBtns = document.querySelectorAll('.lang-btn');
+  if (!allBtns.length || !PlataformaData.hasTranslator) return;
+
+  const CACHE_PREFIX = 'plt_tx_';
+  const SKIP_TAGS = new Set(['script', 'style', 'input', 'textarea', 'select', 'option', 'button', 'noscript']);
+
+  let activeLang = localStorage.getItem('plataforma_lang') || 'es';
+
+  // Collect text nodes from <main> once (before any translation)
+  function collectNodes() {
+    const root = document.querySelector('main') || document.body;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const tag = node.parentElement?.tagName?.toLowerCase();
+        if (SKIP_TAGS.has(tag)) return NodeFilter.FILTER_REJECT;
+        return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      },
+    });
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    return nodes;
+  }
+
+  const originalNodes = collectNodes();
+  const originalTexts = originalNodes.map((n) => n.nodeValue);
+
+  async function applyLang(lang) {
+    // Always reset to Spanish originals first
+    originalNodes.forEach((n, i) => { n.nodeValue = originalTexts[i]; });
+    if (lang === 'es') return;
+
+    const cacheKey = CACHE_PREFIX + lang + '_' + location.pathname;
+    let translated = null;
+    try { translated = JSON.parse(sessionStorage.getItem(cacheKey)); } catch { /* ignore */ }
+
+    if (!translated) {
+      translated = [];
+      const target = lang === 'pt' ? 'PT-BR' : lang.toUpperCase();
+      for (let i = 0; i < originalTexts.length; i += 50) {
+        const chunk = originalTexts.slice(i, i + 50).filter((t) => t.trim());
+        const fd = new FormData();
+        fd.append('action', 'plataforma_translate');
+        fd.append('target', target);
+        chunk.forEach((t) => fd.append('texts[]', t));
+        try {
+          const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body: fd });
+          const data = await res.json();
+          translated.push(...(data.success ? data.data.translations : chunk));
+        } catch {
+          translated.push(...chunk);
+        }
+      }
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(translated)); } catch { /* quota */ }
+    }
+
+    originalNodes.forEach((n, i) => {
+      if (translated[i] !== undefined) n.nodeValue = translated[i];
+    });
+  }
+
+  function setActive(lang) {
+    document.querySelectorAll('.lang-btn').forEach((b) =>
+      b.setAttribute('aria-pressed', String(b.dataset.lang === lang))
+    );
+  }
+
+  // Apply saved preference on load
+  if (activeLang !== 'es') {
+    setActive(activeLang);
+    applyLang(activeLang);
+  }
+
+  allBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeLang = btn.dataset.lang;
+      localStorage.setItem('plataforma_lang', activeLang);
+      setActive(activeLang);
+      applyLang(activeLang);
+    });
   });
 }

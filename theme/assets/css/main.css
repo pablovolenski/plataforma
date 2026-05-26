@@ -136,6 +136,54 @@ img { max-width: 100%; height: auto; }
   margin-left: auto;
 }
 
+/* Language switcher — ES · DE · PT */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  padding-right: 10px;
+  border-right: 1px solid var(--border-light, #e0cec8);
+}
+
+.lang-btn {
+  background: none;
+  border: none;
+  padding: 4px 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--subtle, #9a7870);
+  cursor: pointer;
+  border-radius: var(--radius-sm, 5px);
+  transition: color 120ms ease, background 120ms ease;
+  line-height: 1;
+}
+
+.lang-btn:hover { color: var(--text, #1a0d09); }
+
+.lang-btn[aria-pressed="true"] {
+  color: var(--brand, #c0391c);
+  background: var(--brand-softer, #fdf1ed);
+}
+
+.lang-sep {
+  color: var(--border, #c2a89f);
+  font-size: 0.72rem;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Mobile: centred inside hamburger panel */
+.site-bar__mobile-account .lang-switcher {
+  border-right: none;
+  padding-right: 0;
+  margin-right: 0;
+  margin-bottom: 8px;
+  justify-content: center;
+}
+
 /* Plain nav links — Tablero, etc. */
 .site-bar__link {
   color: var(--muted);
