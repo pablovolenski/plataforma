@@ -1751,7 +1751,11 @@ function initHamburger() {
 
 function initTranslator() {
   const allBtns = document.querySelectorAll('.lang-btn');
-  if (!allBtns.length || !PlataformaData.hasTranslator) return;
+  if (!allBtns.length) return;
+  if (!PlataformaData.hasTranslator) {
+    document.querySelectorAll('.lang-switcher').forEach((el) => el.style.display = 'none');
+    return;
+  }
 
   const CACHE_PREFIX = 'plt_tx_';
   const SKIP_TAGS = new Set(['script', 'style', 'input', 'textarea', 'select', 'option', 'button', 'noscript']);
