@@ -1752,17 +1752,12 @@ function initHamburger() {
 function initTranslator() {
   const allBtns = document.querySelectorAll('.lang-btn');
   if (!allBtns.length) return;
-  if (!PlataformaData.hasTranslator) {
-    document.querySelectorAll('.lang-switcher').forEach((el) => el.style.display = 'none');
-    return;
-  }
 
   const CACHE_PREFIX = 'plt_tx_';
   const SKIP_TAGS = new Set(['script', 'style', 'input', 'textarea', 'select', 'option', 'button', 'noscript']);
 
   let activeLang = localStorage.getItem('plataforma_lang') || 'es';
 
-  // Collect text nodes from <main> once (before any translation)
   function collectNodes() {
     const root = document.querySelector('main') || document.body;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -1782,36 +1777,36 @@ function initTranslator() {
   const originalTexts = originalNodes.map((n) => n.nodeValue);
 
   async function applyLang(lang) {
-    // Always reset to Spanish originals first
     originalNodes.forEach((n, i) => { n.nodeValue = originalTexts[i]; });
     if (lang === 'es') return;
+    if (!PlataformaData.hasTranslator) return;
 
     const cacheKey = CACHE_PREFIX + lang + '_' + location.pathname;
-    let translated = null;
-    try { translated = JSON.parse(sessionStorage.getItem(cacheKey)); } catch { /* ignore */ }
+    let translations;
+    try { translations = JSON.parse(sessionStorage.getItem(cacheKey)); } catch { /* ignore */ }
 
-    if (!translated) {
-      translated = [];
+    if (!translations) {
+      translations = [...originalTexts];
       const target = lang === 'pt' ? 'PT-BR' : lang.toUpperCase();
       for (let i = 0; i < originalTexts.length; i += 50) {
-        const chunk = originalTexts.slice(i, i + 50).filter((t) => t.trim());
+        const slice = originalTexts.slice(i, i + 50);
         const fd = new FormData();
         fd.append('action', 'plataforma_translate');
         fd.append('target', target);
-        chunk.forEach((t) => fd.append('texts[]', t));
+        slice.forEach((t) => fd.append('texts[]', t));
         try {
           const res  = await fetch(PlataformaData.ajaxUrl, { method: 'POST', body: fd });
           const data = await res.json();
-          translated.push(...(data.success ? data.data.translations : chunk));
-        } catch {
-          translated.push(...chunk);
-        }
+          if (data.success) {
+            data.data.translations.forEach((tx, j) => { translations[i + j] = tx; });
+          }
+        } catch { /* network error: leave originals */ }
       }
-      try { sessionStorage.setItem(cacheKey, JSON.stringify(translated)); } catch { /* quota */ }
+      try { sessionStorage.setItem(cacheKey, JSON.stringify(translations)); } catch { /* quota */ }
     }
 
     originalNodes.forEach((n, i) => {
-      if (translated[i] !== undefined) n.nodeValue = translated[i];
+      if (translations[i] !== undefined) n.nodeValue = translations[i];
     });
   }
 
@@ -1821,11 +1816,8 @@ function initTranslator() {
     );
   }
 
-  // Apply saved preference on load
-  if (activeLang !== 'es') {
-    setActive(activeLang);
-    applyLang(activeLang);
-  }
+  setActive(activeLang);
+  if (activeLang !== 'es') applyLang(activeLang);
 
   allBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
