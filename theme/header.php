@@ -19,7 +19,13 @@
 		<?php endif; ?>
 
 		<nav class="site-bar__nav" aria-label="Cuenta">
-			<?php plataforma_render_lang_switcher(); ?>
+			<div class="lang-switcher" aria-label="Idioma / Language">
+				<button class="lang-btn" data-lang="es" aria-pressed="true">ES</button>
+				<span class="lang-sep" aria-hidden="true">·</span>
+				<button class="lang-btn" data-lang="de" aria-pressed="false">DE</button>
+				<span class="lang-sep" aria-hidden="true">·</span>
+				<button class="lang-btn" data-lang="pt" aria-pressed="false">PT</button>
+			</div>
 			<?php if ( is_user_logged_in() ) : ?>
 				<span class="site-bar__user">
 					Conectado como <strong><?php echo esc_html( wp_get_current_user()->display_name ); ?></strong>
@@ -64,7 +70,13 @@
 		] ); ?>
 
 		<div class="site-bar__mobile-account">
-			<?php plataforma_render_lang_switcher(); ?>
+			<div class="lang-switcher" aria-label="Idioma / Language">
+				<button class="lang-btn" data-lang="es" aria-pressed="true">ES</button>
+				<span class="lang-sep" aria-hidden="true">·</span>
+				<button class="lang-btn" data-lang="de" aria-pressed="false">DE</button>
+				<span class="lang-sep" aria-hidden="true">·</span>
+				<button class="lang-btn" data-lang="pt" aria-pressed="false">PT</button>
+			</div>
 			<?php if ( is_user_logged_in() ) : ?>
 				<a class="site-bar__mobile-account-link" href="<?php echo esc_url( home_url( '/tablero/' ) ); ?>">
 					<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.6"/><path d="M4 20c0-3.314 3.582-6 8-6s8 2.686 8 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>

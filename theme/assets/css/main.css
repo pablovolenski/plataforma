@@ -158,12 +158,6 @@ img { max-width: 100%; height: auto; }
   border-radius: var(--radius-sm, 5px);
   transition: color 120ms ease, background 120ms ease;
   line-height: 1;
-  text-decoration: none;
-}
-
-.lang-btn[aria-current="true"] {
-  color: var(--brand, #c0391c);
-  background: var(--brand-softer, #fdf1ed);
 }
 
 .lang-btn:hover { color: var(--text, #1a0d09); }
