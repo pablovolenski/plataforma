@@ -277,15 +277,18 @@ function plataforma_groups_admin_page_html(): void {
 		update_option( 'plataforma_google_maps_key', $maps_key_input );
 		$contact_raw = sanitize_textarea_field( wp_unslash( $_POST['plataforma_contact_recipients'] ?? '' ) );
 		update_option( 'plataforma_contact_recipients', $contact_raw );
-		$deepl_key = sanitize_text_field( wp_unslash( $_POST['plataforma_deepl_key'] ?? '' ) );
-		update_option( 'plataforma_deepl_key', $deepl_key );
+		$lt_url = esc_url_raw( wp_unslash( $_POST['plataforma_libretranslate_url'] ?? '' ) );
+		update_option( 'plataforma_libretranslate_url', untrailingslashit( $lt_url ) );
+		$lt_key = sanitize_text_field( wp_unslash( $_POST['plataforma_libretranslate_key'] ?? '' ) );
+		update_option( 'plataforma_libretranslate_key', $lt_key );
 		echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 	}
 
 	$current          = (string) get_option( 'plataforma_groups', '' );
 	$maps_key         = (string) get_option( 'plataforma_google_maps_key', '' );
 	$contact_current  = (string) get_option( 'plataforma_contact_recipients', '' );
-	$deepl_key        = (string) get_option( 'plataforma_deepl_key', '' );
+	$lt_url           = (string) get_option( 'plataforma_libretranslate_url', '' );
+	$lt_key           = (string) get_option( 'plataforma_libretranslate_key', '' );
 	?>
 	<div class="wrap">
 		<h1>Configuración de Plataforma</h1>
@@ -336,17 +339,28 @@ Comisión de Admisión | admision@vienalatina.com</pre>
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="plataforma_deepl_key">DeepL API Key</label></th>
+					<th scope="row"><label for="plataforma_libretranslate_url">LibreTranslate URL</label></th>
 					<td>
-						<input type="text" id="plataforma_deepl_key" name="plataforma_deepl_key"
-						       value="<?php echo esc_attr( $deepl_key ); ?>"
+						<input type="url" id="plataforma_libretranslate_url" name="plataforma_libretranslate_url"
+						       value="<?php echo esc_attr( $lt_url ); ?>"
 						       style="width:420px;max-width:100%;font-family:monospace;font-size:13px;"
-						       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx">
+						       placeholder="https://libretranslate.tu-dominio.com">
 						<p class="description">
-							Clave gratuita de <a href="https://www.deepl.com/pro#developer" target="_blank" rel="noopener">deepl.com</a>
-							(500 000 caracteres/mes). Activa el selector de idioma ES · DE · PT en el encabezado.
+							URL de tu instancia de <a href="https://libretranslate.com" target="_blank" rel="noopener">LibreTranslate</a>
+							(código abierto, auto-alojada — Railway, Render o Fly.io tienen niveles gratuitos generosos).
+							Sin límite de caracteres, sin terceros, sin cookies. Activa el selector ES · DE · PT en el encabezado.
 							Deja vacío para desactivarlo.
 						</p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="plataforma_libretranslate_key">LibreTranslate API Key</label></th>
+					<td>
+						<input type="text" id="plataforma_libretranslate_key" name="plataforma_libretranslate_key"
+						       value="<?php echo esc_attr( $lt_key ); ?>"
+						       style="width:420px;max-width:100%;font-family:monospace;font-size:13px;"
+						       placeholder="opcional">
+						<p class="description">Sólo si tu instancia requiere clave (<code>LT_API_KEYS=true</code>). Puede quedar vacío.</p>
 					</td>
 				</tr>
 			</table>
@@ -843,54 +857,60 @@ function plataforma_ajax_post_nopriv(): void {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// DeepL translation proxy (GDPR: user IP never sent to DeepL)
+// LibreTranslate proxy (self-hosted, unlimited, no third party, no cookies)
 // ---------------------------------------------------------------------------
 
 add_action( 'wp_ajax_plataforma_translate',        'plataforma_ajax_translate' );
 add_action( 'wp_ajax_nopriv_plataforma_translate', 'plataforma_ajax_translate' );
 
 function plataforma_ajax_translate(): void {
-	$key = (string) get_option( 'plataforma_deepl_key', '' );
-	if ( ! $key ) {
+	$url = (string) get_option( 'plataforma_libretranslate_url', '' );
+	if ( ! $url ) {
 		wp_send_json_error( 'not_configured', 503 );
 	}
 
-	$target = strtoupper( sanitize_text_field( wp_unslash( $_POST['target'] ?? '' ) ) );
-	if ( ! in_array( $target, [ 'DE', 'PT-BR' ], true ) ) {
+	$target = strtolower( sanitize_text_field( wp_unslash( $_POST['target'] ?? '' ) ) );
+	if ( ! in_array( $target, [ 'de', 'pt' ], true ) ) {
 		wp_send_json_error( 'bad_target', 400 );
 	}
 
 	$texts = array_slice( (array) ( $_POST['texts'] ?? [] ), 0, 50 );
 	$texts = array_map( 'sanitize_text_field', array_map( 'wp_unslash', $texts ) );
-	$texts = array_values( array_filter( $texts, fn( $t ) => trim( $t ) !== '' ) );
+	$texts = array_values( $texts );
 
 	if ( ! $texts ) {
 		wp_send_json_success( [ 'translations' => [] ] );
 	}
 
-	// Build x-www-form-urlencoded body manually (wp_remote_post 'body' with array repeats key)
-	$body_parts = [ 'target_lang=' . rawurlencode( $target ) ];
-	foreach ( $texts as $t ) {
-		$body_parts[] = 'text=' . rawurlencode( $t );
+	$body = [
+		'q'      => $texts,
+		'source' => 'es',
+		'target' => $target,
+		'format' => 'text',
+	];
+	$api_key = (string) get_option( 'plataforma_libretranslate_key', '' );
+	if ( $api_key ) {
+		$body['api_key'] = $api_key;
 	}
 
-	$resp = wp_remote_post( 'https://api-free.deepl.com/v2/translate', [
-		'headers' => [
-			'Authorization' => 'DeepL-Auth-Key ' . $key,
-			'Content-Type'  => 'application/x-www-form-urlencoded',
-		],
-		'body'    => implode( '&', $body_parts ),
-		'timeout' => 15,
+	$resp = wp_remote_post( untrailingslashit( $url ) . '/translate', [
+		'headers' => [ 'Content-Type' => 'application/json' ],
+		'body'    => wp_json_encode( $body ),
+		'timeout' => 20,
 	] );
 
 	if ( is_wp_error( $resp ) || (int) wp_remote_retrieve_response_code( $resp ) !== 200 ) {
-		wp_send_json_error( 'deepl_error', 502 );
+		wp_send_json_error( 'libretranslate_error', 502 );
 	}
 
 	$data = json_decode( wp_remote_retrieve_body( $resp ), true );
-	wp_send_json_success( [
-		'translations' => array_column( $data['translations'] ?? [], 'text' ),
-	] );
+	$tx   = $data['translatedText'] ?? [];
+	// LibreTranslate returns a string when q is a single string, array when q is an array.
+	if ( is_string( $tx ) ) {
+		$tx = [ $tx ];
+	}
+
+	wp_send_json_success( [ 'translations' => array_values( (array) $tx ) ] );
 }
 
 add_action( 'wp_enqueue_scripts', 'plataforma_localise_scripts', 20 );
@@ -917,7 +937,7 @@ function plataforma_localise_scripts(): void {
 		'mapsKey'        => $maps_key,
 		'vapidPublicKey' => (string) get_option( 'plataforma_vapid_public', '' ),
 		'isSecure'       => is_ssl(),
-		'hasTranslator'  => ! empty( get_option( 'plataforma_deepl_key', '' ) ),
+		'hasTranslator'  => ! empty( get_option( 'plataforma_libretranslate_url', '' ) ),
 	] );
 
 	// Enqueue Google Maps Places API when a key is configured and we might need autocomplete

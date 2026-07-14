@@ -1746,7 +1746,7 @@ function initHamburger() {
 }
 
 // ---------------------------------------------------------------------------
-// GDPR-friendly page translator — DeepL server-side proxy
+// Page translator — LibreTranslate self-hosted (no third party, no cookies)
 // ---------------------------------------------------------------------------
 
 function initTranslator() {
@@ -1787,7 +1787,7 @@ function initTranslator() {
 
     if (!translations) {
       translations = [...originalTexts];
-      const target = lang === 'pt' ? 'PT-BR' : lang.toUpperCase();
+      const target = lang; // LibreTranslate: 'de' or 'pt'
       for (let i = 0; i < originalTexts.length; i += 50) {
         const slice = originalTexts.slice(i, i + 50);
         const fd = new FormData();
