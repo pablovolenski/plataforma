@@ -31,6 +31,53 @@ function plataforma_theme_setup(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Language switcher (Polylang-driven; hidden when Polylang not installed)
+// ---------------------------------------------------------------------------
+
+function plataforma_render_lang_switcher(): void {
+	if ( ! function_exists( 'pll_the_languages' ) ) {
+		return;
+	}
+
+	$langs = pll_the_languages( [
+		'raw'              => 1,
+		'hide_if_empty'    => 0,
+		'display_names_as' => 'slug',
+	] );
+	if ( empty( $langs ) ) {
+		return;
+	}
+
+	$labels  = [ 'es' => 'ES', 'de' => 'DE', 'pt' => 'PT', 'pt-br' => 'PT' ];
+	$ordered = [];
+	foreach ( [ 'es', 'de', 'pt', 'pt-br' ] as $slug ) {
+		if ( isset( $langs[ $slug ] ) ) {
+			$ordered[ $slug ] = $langs[ $slug ];
+		}
+	}
+
+	echo '<div class="lang-switcher" aria-label="Idioma / Language">';
+	$first = true;
+	foreach ( $ordered as $slug => $lang ) {
+		if ( ! $first ) {
+			echo '<span class="lang-sep" aria-hidden="true">·</span>';
+		}
+		$first  = false;
+		$label  = $labels[ $slug ] ?? strtoupper( $slug );
+		$active = ! empty( $lang['current_lang'] );
+		printf(
+			'<a class="lang-btn" href="%s" hreflang="%s" aria-current="%s"%s>%s</a>',
+			esc_url( $lang['url'] ),
+			esc_attr( $slug ),
+			$active ? 'true' : 'false',
+			$active ? ' aria-pressed="true"' : '',
+			esc_html( $label )
+		);
+	}
+	echo '</div>';
+}
+
+// ---------------------------------------------------------------------------
 // Assets
 // ---------------------------------------------------------------------------
 
