@@ -46,6 +46,7 @@ function plataforma_seo_single(): void {
 	$schema = [
 		'@context'         => 'https://schema.org',
 		'@type'            => 'BlogPosting',
+		'inLanguage'       => str_replace( '_', '-', get_locale() ),
 		'headline'         => $title,
 		'description'      => $description,
 		'url'              => $url,

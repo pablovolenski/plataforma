@@ -82,6 +82,46 @@ function plataforma_enqueue_assets(): void {
 	);
 }
 
+// Language switcher: adaptive.
+// - On a post that has Polylang translations, emit real <a> links to sibling posts.
+// - Everywhere else, emit <button data-lang> markup for the DeepL JS switcher.
+function plataforma_lang_switcher(): void {
+	$has_siblings = false;
+	if ( function_exists( 'pll_get_post_translations' ) && is_singular( 'post' ) ) {
+		$sibs = pll_get_post_translations( get_queried_object_id() );
+		$has_siblings = ! empty( $sibs['de'] ) || ! empty( $sibs['pt-br'] );
+	}
+
+	echo '<div class="lang-switcher" aria-label="Idioma / Language">';
+
+	if ( $has_siblings ) {
+		$current = function_exists( 'pll_current_language' ) ? pll_current_language() : 'es';
+		$order   = [ 'es' => 'ES', 'de' => 'DE', 'pt-br' => 'PT' ];
+		$parts   = [];
+		foreach ( $order as $slug => $label ) {
+			$sib_id = $sibs[ $slug ] ?? null;
+			if ( ! $sib_id ) {
+				continue;
+			}
+			$href    = esc_url( get_permalink( $sib_id ) );
+			$pressed = ( $current === $slug ) ? 'true' : 'false';
+			$parts[] = sprintf(
+				'<a class="lang-btn" href="%s" aria-pressed="%s">%s</a>',
+				$href, $pressed, esc_html( $label )
+			);
+		}
+		echo implode( '<span class="lang-sep" aria-hidden="true">·</span>', $parts );
+	} else {
+		echo '<button class="lang-btn" data-lang="es" aria-pressed="true">ES</button>';
+		echo '<span class="lang-sep" aria-hidden="true">·</span>';
+		echo '<button class="lang-btn" data-lang="de" aria-pressed="false">DE</button>';
+		echo '<span class="lang-sep" aria-hidden="true">·</span>';
+		echo '<button class="lang-btn" data-lang="pt" aria-pressed="false">PT</button>';
+	}
+
+	echo '</div>';
+}
+
 // Preconnect to Google Fonts servers for faster loading
 add_action( 'wp_head', 'plataforma_font_preconnect', 1 );
 

@@ -846,30 +846,32 @@ function plataforma_ajax_post_nopriv(): void {
 // DeepL translation proxy (GDPR: user IP never sent to DeepL)
 // ---------------------------------------------------------------------------
 
-add_action( 'wp_ajax_plataforma_translate',        'plataforma_ajax_translate' );
-add_action( 'wp_ajax_nopriv_plataforma_translate', 'plataforma_ajax_translate' );
-
-function plataforma_ajax_translate(): void {
+/**
+ * Shared DeepL call. Used by the live AJAX switcher AND by the save_post
+ * auto-translate hook.
+ *
+ * @param string[] $texts   Strings to translate.
+ * @param string   $target  DeepL target code (DE, PT-BR).
+ * @param bool     $html    If true, DeepL preserves HTML tags (tag_handling=html).
+ * @return string[]|WP_Error Translations in same order as input, or WP_Error on failure.
+ */
+function plataforma_deepl_translate( array $texts, string $target, bool $html = false ) {
 	$key = (string) get_option( 'plataforma_deepl_key', '' );
 	if ( ! $key ) {
-		wp_send_json_error( 'not_configured', 503 );
+		return new WP_Error( 'not_configured', 'DeepL key not set' );
 	}
-
-	$target = strtoupper( sanitize_text_field( wp_unslash( $_POST['target'] ?? '' ) ) );
-	if ( ! in_array( $target, [ 'DE', 'PT-BR' ], true ) ) {
-		wp_send_json_error( 'bad_target', 400 );
-	}
-
-	$texts = array_slice( (array) ( $_POST['texts'] ?? [] ), 0, 50 );
-	$texts = array_map( 'sanitize_text_field', array_map( 'wp_unslash', $texts ) );
-	$texts = array_values( array_filter( $texts, fn( $t ) => trim( $t ) !== '' ) );
-
+	$texts = array_values( array_filter( $texts, fn( $t ) => is_string( $t ) && trim( $t ) !== '' ) );
 	if ( ! $texts ) {
-		wp_send_json_success( [ 'translations' => [] ] );
+		return [];
 	}
 
-	// Build x-www-form-urlencoded body manually (wp_remote_post 'body' with array repeats key)
-	$body_parts = [ 'target_lang=' . rawurlencode( $target ) ];
+	$body_parts = [
+		'target_lang=' . rawurlencode( $target ),
+		'source_lang=ES',
+	];
+	if ( $html ) {
+		$body_parts[] = 'tag_handling=html';
+	}
 	foreach ( $texts as $t ) {
 		$body_parts[] = 'text=' . rawurlencode( $t );
 	}
@@ -880,17 +882,91 @@ function plataforma_ajax_translate(): void {
 			'Content-Type'  => 'application/x-www-form-urlencoded',
 		],
 		'body'    => implode( '&', $body_parts ),
-		'timeout' => 15,
+		'timeout' => 30,
 	] );
 
-	if ( is_wp_error( $resp ) || (int) wp_remote_retrieve_response_code( $resp ) !== 200 ) {
-		wp_send_json_error( 'deepl_error', 502 );
+	if ( is_wp_error( $resp ) ) {
+		return $resp;
+	}
+	if ( (int) wp_remote_retrieve_response_code( $resp ) !== 200 ) {
+		return new WP_Error( 'deepl_http', 'DeepL HTTP ' . wp_remote_retrieve_response_code( $resp ) );
 	}
 
 	$data = json_decode( wp_remote_retrieve_body( $resp ), true );
-	wp_send_json_success( [
-		'translations' => array_column( $data['translations'] ?? [], 'text' ),
-	] );
+	return array_column( $data['translations'] ?? [], 'text' );
+}
+
+add_action( 'wp_ajax_plataforma_translate',        'plataforma_ajax_translate' );
+add_action( 'wp_ajax_nopriv_plataforma_translate', 'plataforma_ajax_translate' );
+
+function plataforma_ajax_translate(): void {
+	$target = strtoupper( sanitize_text_field( wp_unslash( $_POST['target'] ?? '' ) ) );
+	if ( ! in_array( $target, [ 'DE', 'PT-BR' ], true ) ) {
+		wp_send_json_error( 'bad_target', 400 );
+	}
+
+	$texts = array_slice( (array) ( $_POST['texts'] ?? [] ), 0, 50 );
+	$texts = array_map( 'sanitize_text_field', array_map( 'wp_unslash', $texts ) );
+
+	$result = plataforma_deepl_translate( $texts, $target, false );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( $result->get_error_code(), 502 );
+	}
+	wp_send_json_success( [ 'translations' => $result ] );
+}
+
+// ---------------------------------------------------------------------------
+// Auto-translate on publish (SEO/GEO): create DE + PT sibling posts linked
+// via Polylang. Only fires when Polylang is active and post is Spanish.
+// ---------------------------------------------------------------------------
+
+add_action( 'save_post', 'plataforma_autotranslate_post', 20, 3 );
+
+function plataforma_autotranslate_post( int $post_id, WP_Post $post, bool $update ): void {
+	if ( ! function_exists( 'pll_set_post_language' ) ) return;
+	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) return;
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+	if ( 'post' !== $post->post_type ) return;
+	if ( 'publish' !== $post->post_status ) return;
+	if ( get_post_meta( $post_id, '_plataforma_autotranslated', true ) ) return; // sibling, not source
+	$src_lang = pll_get_post_language( $post_id );
+	if ( $src_lang && 'es' !== $src_lang ) return;
+
+	$existing = function_exists( 'pll_get_post_translations' ) ? pll_get_post_translations( $post_id ) : [];
+	if ( ! $src_lang ) pll_set_post_language( $post_id, 'es' );
+
+	$targets = [ 'de' => 'DE', 'pt-br' => 'PT-BR' ];
+	$links   = [ 'es' => $post_id ];
+
+	foreach ( $targets as $slug => $deepl_code ) {
+		if ( ! empty( $existing[ $slug ] ) ) {
+			$links[ $slug ] = (int) $existing[ $slug ];
+			continue;
+		}
+		$title_tx   = plataforma_deepl_translate( [ $post->post_title ],   $deepl_code, false );
+		$content_tx = plataforma_deepl_translate( [ $post->post_content ], $deepl_code, true );
+		if ( is_wp_error( $title_tx ) || is_wp_error( $content_tx ) ) continue;
+
+		$new_id = wp_insert_post( [
+			'post_type'    => 'post',
+			'post_status'  => 'publish',
+			'post_author'  => $post->post_author,
+			'post_title'   => $title_tx[0]   ?? $post->post_title,
+			'post_content' => $content_tx[0] ?? $post->post_content,
+			'post_excerpt' => $post->post_excerpt,
+		], true );
+		if ( is_wp_error( $new_id ) || ! $new_id ) continue;
+
+		wp_set_post_categories( $new_id, wp_get_post_categories( $post_id ) );
+		wp_set_post_tags( $new_id, wp_get_post_tags( $post_id, [ 'fields' => 'names' ] ) );
+		update_post_meta( $new_id, '_plataforma_autotranslated', $post_id );
+		pll_set_post_language( $new_id, $slug );
+		$links[ $slug ] = $new_id;
+	}
+
+	if ( function_exists( 'pll_save_post_translations' ) && count( $links ) > 1 ) {
+		pll_save_post_translations( $links );
+	}
 }
 
 add_action( 'wp_enqueue_scripts', 'plataforma_localise_scripts', 20 );

@@ -160,6 +160,8 @@ img { max-width: 100%; height: auto; }
   line-height: 1;
 }
 
+a.lang-btn { text-decoration: none; display: inline-block; }
+
 .lang-btn:hover { color: var(--text, #1a0d09); }
 
 .lang-btn[aria-pressed="true"] {

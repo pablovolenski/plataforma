@@ -1750,7 +1750,10 @@ function initHamburger() {
 // ---------------------------------------------------------------------------
 
 function initTranslator() {
-  const allBtns = document.querySelectorAll('.lang-btn');
+  // Only bind when the switcher rendered as <button> elements. On article pages
+  // with Polylang sibling posts, the switcher renders as <a> and we let the
+  // browser navigate normally (server-rendered translations).
+  const allBtns = document.querySelectorAll('button.lang-btn');
   if (!allBtns.length) return;
 
   const CACHE_PREFIX = 'plt_tx_';
