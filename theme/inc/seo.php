@@ -33,6 +33,18 @@ function plataforma_seo_single(): void {
 	echo '<meta property="og:title" content="' . esc_attr( $title ) . '">' . "\n";
 	echo '<meta property="og:description" content="' . esc_attr( $description ) . '">' . "\n";
 	echo '<meta property="og:url" content="' . esc_url( $url ) . '">' . "\n";
+	echo '<meta property="og:locale" content="' . esc_attr( str_replace( '-', '_', get_locale() ) ) . '">' . "\n";
+	if ( function_exists( 'pll_get_post_translations' ) ) {
+		$sibs      = pll_get_post_translations( $post->ID );
+		$loc_map   = [ 'es' => 'es_ES', 'de' => 'de_DE', 'pt-br' => 'pt_BR' ];
+		$this_lang = function_exists( 'pll_current_language' ) ? pll_current_language() : '';
+		foreach ( $sibs as $lang => $sib_id ) {
+			if ( $lang === $this_lang || empty( $loc_map[ $lang ] ) ) {
+				continue;
+			}
+			echo '<meta property="og:locale:alternate" content="' . esc_attr( $loc_map[ $lang ] ) . '">' . "\n";
+		}
+	}
 	if ( $image ) {
 		echo '<meta property="og:image" content="' . esc_url( $image ) . '">' . "\n";
 	}

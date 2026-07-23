@@ -286,6 +286,7 @@ function plataforma_groups_admin_page_html(): void {
 	$maps_key         = (string) get_option( 'plataforma_google_maps_key', '' );
 	$contact_current  = (string) get_option( 'plataforma_contact_recipients', '' );
 	$deepl_key        = (string) get_option( 'plataforma_deepl_key', '' );
+	$deepl_usage      = $deepl_key ? plataforma_deepl_usage() : null;
 	?>
 	<div class="wrap">
 		<h1>Configuración de Plataforma</h1>
@@ -347,6 +348,19 @@ Comisión de Admisión | admision@vienalatina.com</pre>
 							(500 000 caracteres/mes). Activa el selector de idioma ES · DE · PT en el encabezado.
 							Deja vacío para desactivarlo.
 						</p>
+						<?php if ( $deepl_usage && ! is_wp_error( $deepl_usage ) ) : ?>
+							<p style="margin-top:8px;">
+								<strong>Uso este mes:</strong>
+								<?php echo number_format_i18n( $deepl_usage['count'] ); ?>
+								/ <?php echo number_format_i18n( $deepl_usage['limit'] ); ?>
+								caracteres
+								(<?php echo esc_html( $deepl_usage['percent'] ); ?>%)
+							</p>
+						<?php elseif ( is_wp_error( $deepl_usage ) ) : ?>
+							<p style="margin-top:8px;color:#a00;">
+								Error consultando uso de DeepL: <?php echo esc_html( $deepl_usage->get_error_code() ); ?>
+							</p>
+						<?php endif; ?>
 					</td>
 				</tr>
 			</table>
@@ -894,6 +908,45 @@ function plataforma_deepl_translate( array $texts, string $target, bool $html = 
 
 	$data = json_decode( wp_remote_retrieve_body( $resp ), true );
 	return array_column( $data['translations'] ?? [], 'text' );
+}
+
+/**
+ * DeepL Free /v2/usage — cached 1h. Returns ['count' => int, 'limit' => int, 'percent' => int]
+ * or WP_Error on failure.
+ */
+function plataforma_deepl_usage() {
+	$cached = get_transient( 'plataforma_deepl_usage' );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$key = (string) get_option( 'plataforma_deepl_key', '' );
+	if ( ! $key ) {
+		return new WP_Error( 'not_configured', 'DeepL key not set' );
+	}
+
+	$resp = wp_remote_get( 'https://api-free.deepl.com/v2/usage', [
+		'headers' => [ 'Authorization' => 'DeepL-Auth-Key ' . $key ],
+		'timeout' => 10,
+	] );
+	if ( is_wp_error( $resp ) ) {
+		return $resp;
+	}
+	if ( 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+		return new WP_Error( 'deepl_http', 'DeepL HTTP ' . wp_remote_retrieve_response_code( $resp ) );
+	}
+
+	$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+	$out  = [
+		'count'   => (int) ( $data['character_count'] ?? 0 ),
+		'limit'   => (int) ( $data['character_limit'] ?? 500000 ),
+		'percent' => 0,
+	];
+	if ( $out['limit'] > 0 ) {
+		$out['percent'] = (int) round( $out['count'] * 100 / $out['limit'] );
+	}
+	set_transient( 'plataforma_deepl_usage', $out, HOUR_IN_SECONDS );
+	return $out;
 }
 
 add_action( 'wp_ajax_plataforma_translate',        'plataforma_ajax_translate' );

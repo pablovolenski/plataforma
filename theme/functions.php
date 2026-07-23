@@ -136,6 +136,7 @@ function plataforma_font_preconnect(): void {
 
 require_once get_template_directory() . '/inc/roles.php';
 require_once get_template_directory() . '/inc/seo.php';
+require_once get_template_directory() . '/inc/robots-and-llms.php';
 require_once get_template_directory() . '/inc/frontend-post.php';
 require_once get_template_directory() . '/inc/ajax-likes.php';
 
