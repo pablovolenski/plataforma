@@ -277,18 +277,15 @@ function plataforma_groups_admin_page_html(): void {
 		update_option( 'plataforma_google_maps_key', $maps_key_input );
 		$contact_raw = sanitize_textarea_field( wp_unslash( $_POST['plataforma_contact_recipients'] ?? '' ) );
 		update_option( 'plataforma_contact_recipients', $contact_raw );
-		$azure_key = sanitize_text_field( wp_unslash( $_POST['plataforma_azure_key'] ?? '' ) );
-		update_option( 'plataforma_azure_key', $azure_key );
-		$azure_region = sanitize_text_field( wp_unslash( $_POST['plataforma_azure_region'] ?? '' ) );
-		update_option( 'plataforma_azure_region', $azure_region );
+		$deepl_key = sanitize_text_field( wp_unslash( $_POST['plataforma_deepl_key'] ?? '' ) );
+		update_option( 'plataforma_deepl_key', $deepl_key );
 		echo '<div class="notice notice-success is-dismissible"><p>Configuración guardada.</p></div>';
 	}
 
 	$current          = (string) get_option( 'plataforma_groups', '' );
 	$maps_key         = (string) get_option( 'plataforma_google_maps_key', '' );
 	$contact_current  = (string) get_option( 'plataforma_contact_recipients', '' );
-	$azure_key        = (string) get_option( 'plataforma_azure_key', '' );
-	$azure_region     = (string) get_option( 'plataforma_azure_region', 'westeurope' );
+	$deepl_key        = (string) get_option( 'plataforma_deepl_key', '' );
 	?>
 	<div class="wrap">
 		<h1>Configuración de Plataforma</h1>
@@ -339,28 +336,19 @@ Comisión de Admisión | admision@vienalatina.com</pre>
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="plataforma_azure_key">Azure Translator Key</label></th>
+					<th scope="row"><label for="plataforma_deepl_key">DeepL API Key</label></th>
 					<td>
-						<input type="text" id="plataforma_azure_key" name="plataforma_azure_key"
-						       value="<?php echo esc_attr( $azure_key ); ?>"
+						<input type="text" id="plataforma_deepl_key" name="plataforma_deepl_key"
+						       value="<?php echo esc_attr( $deepl_key ); ?>"
 						       style="width:420px;max-width:100%;font-family:monospace;font-size:13px;"
-						       placeholder="clave de suscripción">
+						       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:fx">
 						<p class="description">
-							Clave gratuita de <a href="https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation" target="_blank" rel="noopener">Azure Translator</a>
-							(2 000 000 caracteres/mes). Requiere también el plugin <strong>Polylang</strong>.
+							Clave gratuita de <a href="https://www.deepl.com/pro#developer" target="_blank" rel="noopener">DeepL</a>
+							(500 000 caracteres/mes). Requiere también el plugin <strong>Polylang</strong>.
 							Al publicar una entrada en español, se crean automáticamente las versiones en alemán y portugués
-							en URLs propias (<code>/de/…</code>, <code>/pt/…</code>) para posicionamiento SEO.
+							en URLs propias (<code>/de/…</code>, <code>/pt-br/…</code>) para posicionamiento SEO/GEO.
+							DeepL es una empresa alemana (RGPD compatible, DPA disponible).
 						</p>
-					</td>
-				</tr>
-				<tr>
-					<th scope="row"><label for="plataforma_azure_region">Azure Region</label></th>
-					<td>
-						<input type="text" id="plataforma_azure_region" name="plataforma_azure_region"
-						       value="<?php echo esc_attr( $azure_region ); ?>"
-						       style="width:220px;max-width:100%;font-family:monospace;font-size:13px;"
-						       placeholder="westeurope">
-						<p class="description">Región del recurso de Azure (ej. <code>westeurope</code>, <code>germanywestcentral</code>).</p>
 					</td>
 				</tr>
 			</table>
@@ -857,58 +845,64 @@ function plataforma_ajax_post_nopriv(): void {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Azure Translator + Polylang: auto-translate ES posts into DE and PT-BR
-// on publish. Real /de/ and /pt/ URLs (SEO/GEO). Server-side, no cookies.
+// DeepL + Polylang: auto-translate ES posts into DE and PT-BR on publish.
+// Real /de/ and /pt-br/ URLs (SEO/GEO). Server-side proxy — visitor IP never
+// leaves the server (GDPR). DeepL is a German company with a signed DPA.
 // ---------------------------------------------------------------------------
 
 add_action( 'save_post_post', 'plataforma_auto_translate_post', 20, 3 );
 
 function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $update ): void {
-	// Skip autosaves / revisions / trashed posts.
 	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
 		return;
 	}
 	if ( 'publish' !== $post->post_status ) {
 		return;
 	}
-
-	// Polylang is required. If missing, bail silently (site still works).
+	// Skip sibling posts (auto-generated derivatives).
+	if ( get_post_meta( $post_id, '_plataforma_autotranslated', true ) ) {
+		return;
+	}
+	// Polylang required.
 	if ( ! function_exists( 'pll_get_post_language' ) || ! function_exists( 'pll_save_post_translations' ) ) {
 		return;
 	}
 
-	// Only translate the Spanish source post.
 	$src_lang = pll_get_post_language( $post_id );
-	if ( 'es' !== $src_lang ) {
+	// Only translate the Spanish source post. Also handle the case where
+	// the post has no language yet — assume it's the ES source and set it.
+	if ( $src_lang && 'es' !== $src_lang ) {
 		return;
 	}
+	if ( ! $src_lang ) {
+		pll_set_post_language( $post_id, 'es' );
+	}
 
-	// Prevent infinite recursion (wp_insert_post below triggers save_post again).
 	if ( get_transient( 'plataforma_translating_' . $post_id ) ) {
 		return;
 	}
-
-	$key    = (string) get_option( 'plataforma_azure_key', '' );
-	$region = (string) get_option( 'plataforma_azure_region', 'westeurope' );
-	if ( ! $key ) {
+	if ( ! get_option( 'plataforma_deepl_key', '' ) ) {
 		return;
 	}
 
-	$targets     = [ 'de' => 'de', 'pt' => 'pt-br' ];
-	$existing    = function_exists( 'pll_get_post_translations' ) ? pll_get_post_translations( $post_id ) : [];
+	$targets     = [ 'de' => 'DE', 'pt-br' => 'PT-BR' ];
+	$existing    = pll_get_post_translations( $post_id );
 	$sibling_ids = [ 'es' => $post_id ];
 
 	set_transient( 'plataforma_translating_' . $post_id, 1, 60 );
 
-	foreach ( $targets as $pll_lang => $azure_lang ) {
-		$title_tx   = plataforma_azure_translate( $post->post_title,   $azure_lang, $key, $region );
-		$content_tx = plataforma_azure_translate( $post->post_content, $azure_lang, $key, $region );
+	foreach ( $targets as $pll_lang => $deepl_target ) {
+		$title_tx   = plataforma_deepl_translate( [ $post->post_title ],   $deepl_target, false );
+		$content_tx = plataforma_deepl_translate( [ $post->post_content ], $deepl_target, true );
 		$excerpt_tx = $post->post_excerpt !== ''
-			? plataforma_azure_translate( $post->post_excerpt, $azure_lang, $key, $region )
-			: '';
+			? plataforma_deepl_translate( [ $post->post_excerpt ], $deepl_target, false )
+			: [ '' ];
 
-		if ( null === $title_tx || null === $content_tx ) {
-			continue; // Azure call failed — skip this language this round.
+		if ( is_wp_error( $title_tx ) || is_wp_error( $content_tx ) ) {
+			continue; // DeepL call failed — skip this language this round.
+		}
+		if ( is_wp_error( $excerpt_tx ) ) {
+			$excerpt_tx = [ '' ];
 		}
 
 		$sibling_id = isset( $existing[ $pll_lang ] ) ? (int) $existing[ $pll_lang ] : 0;
@@ -917,9 +911,9 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 			'post_type'    => $post->post_type,
 			'post_status'  => 'publish',
 			'post_author'  => $post->post_author,
-			'post_title'   => $title_tx,
-			'post_content' => $content_tx,
-			'post_excerpt' => $excerpt_tx,
+			'post_title'   => $title_tx[0]   ?? $post->post_title,
+			'post_content' => $content_tx[0] ?? $post->post_content,
+			'post_excerpt' => $excerpt_tx[0] ?? '',
 		];
 
 		if ( $sibling_id ) {
@@ -931,9 +925,9 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 				continue;
 			}
 			pll_set_post_language( $sibling_id, $pll_lang );
+			update_post_meta( $sibling_id, '_plataforma_autotranslated', $post_id );
 		}
 
-		// Copy featured image and categories from source.
 		$thumb_id = get_post_thumbnail_id( $post_id );
 		if ( $thumb_id ) {
 			set_post_thumbnail( $sibling_id, $thumb_id );
@@ -941,6 +935,10 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 		$cat_ids = wp_get_object_terms( $post_id, 'category', [ 'fields' => 'ids' ] );
 		if ( ! is_wp_error( $cat_ids ) && $cat_ids ) {
 			wp_set_object_terms( $sibling_id, $cat_ids, 'category' );
+		}
+		$tag_names = wp_get_object_terms( $post_id, 'post_tag', [ 'fields' => 'names' ] );
+		if ( ! is_wp_error( $tag_names ) && $tag_names ) {
+			wp_set_object_terms( $sibling_id, $tag_names, 'post_tag' );
 		}
 
 		$sibling_ids[ $pll_lang ] = $sibling_id;
@@ -954,44 +952,54 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 }
 
 /**
- * Call Azure Translator for a single string. Returns translated text or null on failure.
- * Handles chunking for content longer than Azure's ~50 000 char per-request limit.
+ * Server-side DeepL call. Returns translated strings in the same order as input,
+ * or WP_Error on failure. When $html is true, DeepL preserves HTML tags —
+ * needed for post_content so <p>, <a>, <img> etc. survive translation intact.
+ *
+ * @param string[] $texts
+ * @param string   $target DeepL target code (DE, PT-BR)
+ * @param bool     $html
+ * @return string[]|WP_Error
  */
-function plataforma_azure_translate( string $text, string $to, string $key, string $region ): ?string {
-	if ( trim( $text ) === '' ) {
-		return $text;
+function plataforma_deepl_translate( array $texts, string $target, bool $html = false ) {
+	$key = (string) get_option( 'plataforma_deepl_key', '' );
+	if ( ! $key ) {
+		return new WP_Error( 'not_configured', 'DeepL key not set' );
+	}
+	$texts = array_values( array_filter( $texts, fn( $t ) => is_string( $t ) && trim( $t ) !== '' ) );
+	if ( ! $texts ) {
+		return [];
 	}
 
-	$chunks = str_split( $text, 45000 );
-	$out    = '';
-
-	foreach ( $chunks as $chunk ) {
-		$resp = wp_remote_post(
-			'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=es&to=' . rawurlencode( $to ) . '&textType=html',
-			[
-				'headers' => [
-					'Ocp-Apim-Subscription-Key'    => $key,
-					'Ocp-Apim-Subscription-Region' => $region,
-					'Content-Type'                 => 'application/json; charset=UTF-8',
-				],
-				'body'    => wp_json_encode( [ [ 'Text' => $chunk ] ] ),
-				'timeout' => 30,
-			]
-		);
-
-		if ( is_wp_error( $resp ) || (int) wp_remote_retrieve_response_code( $resp ) !== 200 ) {
-			return null;
-		}
-
-		$data = json_decode( wp_remote_retrieve_body( $resp ), true );
-		$tx   = $data[0]['translations'][0]['text'] ?? null;
-		if ( null === $tx ) {
-			return null;
-		}
-		$out .= $tx;
+	$body_parts = [
+		'target_lang=' . rawurlencode( $target ),
+		'source_lang=ES',
+	];
+	if ( $html ) {
+		$body_parts[] = 'tag_handling=html';
+	}
+	foreach ( $texts as $t ) {
+		$body_parts[] = 'text=' . rawurlencode( $t );
 	}
 
-	return $out;
+	$resp = wp_remote_post( 'https://api-free.deepl.com/v2/translate', [
+		'headers' => [
+			'Authorization' => 'DeepL-Auth-Key ' . $key,
+			'Content-Type'  => 'application/x-www-form-urlencoded',
+		],
+		'body'    => implode( '&', $body_parts ),
+		'timeout' => 30,
+	] );
+
+	if ( is_wp_error( $resp ) ) {
+		return $resp;
+	}
+	if ( (int) wp_remote_retrieve_response_code( $resp ) !== 200 ) {
+		return new WP_Error( 'deepl_http', 'DeepL HTTP ' . wp_remote_retrieve_response_code( $resp ) );
+	}
+
+	$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+	return array_column( $data['translations'] ?? [], 'text' );
 }
 
 add_action( 'wp_enqueue_scripts', 'plataforma_localise_scripts', 20 );
