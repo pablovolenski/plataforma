@@ -868,14 +868,24 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 		return;
 	}
 
+	// Polylang slug → [DeepL source code, DeepL target code].
+	// Source can be any of these; DE posts are treated as authored originals too.
+	$lang_map = [
+		'es'    => [ 'ES', 'ES' ],
+		'de'    => [ 'DE', 'DE' ],
+		'pt'    => [ 'PT', 'PT-PT' ],
+		'pt-br' => [ 'PT', 'PT-BR' ],
+	];
+
 	$src_lang = pll_get_post_language( $post_id );
-	// Only translate the Spanish source post. Also handle the case where
-	// the post has no language yet — assume it's the ES source and set it.
-	if ( $src_lang && 'es' !== $src_lang ) {
-		return;
-	}
+	// If the editor didn't assign a language, assume Spanish (the site's default).
 	if ( ! $src_lang ) {
 		pll_set_post_language( $post_id, 'es' );
+		$src_lang = 'es';
+	}
+	// Skip anything Polylang assigned that we don't know how to translate.
+	if ( ! isset( $lang_map[ $src_lang ] ) ) {
+		return;
 	}
 
 	if ( get_transient( 'plataforma_translating_' . $post_id ) ) {
@@ -885,17 +895,31 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
 		return;
 	}
 
-	$targets     = [ 'de' => 'DE', 'pt-br' => 'PT-BR' ];
-	$existing    = pll_get_post_translations( $post_id );
-	$sibling_ids = [ 'es' => $post_id ];
+	// Target set = all Polylang-configured languages minus the source, restricted
+	// to codes we know how to talk to DeepL about.
+	$configured = function_exists( 'pll_languages_list' ) ? pll_languages_list() : array_keys( $lang_map );
+	$targets    = [];
+	foreach ( $configured as $slug ) {
+		if ( $slug === $src_lang || ! isset( $lang_map[ $slug ] ) ) {
+			continue;
+		}
+		$targets[ $slug ] = $lang_map[ $slug ][1]; // DeepL target code
+	}
+	if ( ! $targets ) {
+		return;
+	}
+
+	$deepl_source = $lang_map[ $src_lang ][0];
+	$existing     = pll_get_post_translations( $post_id );
+	$sibling_ids  = [ $src_lang => $post_id ];
 
 	set_transient( 'plataforma_translating_' . $post_id, 1, 60 );
 
 	foreach ( $targets as $pll_lang => $deepl_target ) {
-		$title_tx   = plataforma_deepl_translate( [ $post->post_title ],   $deepl_target, false );
-		$content_tx = plataforma_deepl_translate( [ $post->post_content ], $deepl_target, true );
+		$title_tx   = plataforma_deepl_translate( [ $post->post_title ],   $deepl_target, false, $deepl_source );
+		$content_tx = plataforma_deepl_translate( [ $post->post_content ], $deepl_target, true,  $deepl_source );
 		$excerpt_tx = $post->post_excerpt !== ''
-			? plataforma_deepl_translate( [ $post->post_excerpt ], $deepl_target, false )
+			? plataforma_deepl_translate( [ $post->post_excerpt ], $deepl_target, false, $deepl_source )
 			: [ '' ];
 
 		if ( is_wp_error( $title_tx ) || is_wp_error( $content_tx ) ) {
@@ -955,13 +979,15 @@ function plataforma_auto_translate_post( int $post_id, WP_Post $post, bool $upda
  * Server-side DeepL call. Returns translated strings in the same order as input,
  * or WP_Error on failure. When $html is true, DeepL preserves HTML tags —
  * needed for post_content so <p>, <a>, <img> etc. survive translation intact.
+ * When $source is null, DeepL auto-detects the source language.
  *
- * @param string[] $texts
- * @param string   $target DeepL target code (DE, PT-BR)
- * @param bool     $html
+ * @param string[]    $texts
+ * @param string      $target DeepL target code (ES, DE, PT-BR, PT-PT)
+ * @param bool        $html
+ * @param string|null $source DeepL source code (ES, DE, PT) or null to auto-detect
  * @return string[]|WP_Error
  */
-function plataforma_deepl_translate( array $texts, string $target, bool $html = false ) {
+function plataforma_deepl_translate( array $texts, string $target, bool $html = false, ?string $source = null ) {
 	$key = (string) get_option( 'plataforma_deepl_key', '' );
 	if ( ! $key ) {
 		return new WP_Error( 'not_configured', 'DeepL key not set' );
@@ -971,10 +997,10 @@ function plataforma_deepl_translate( array $texts, string $target, bool $html = 
 		return [];
 	}
 
-	$body_parts = [
-		'target_lang=' . rawurlencode( $target ),
-		'source_lang=ES',
-	];
+	$body_parts = [ 'target_lang=' . rawurlencode( $target ) ];
+	if ( $source ) {
+		$body_parts[] = 'source_lang=' . rawurlencode( $source );
+	}
 	if ( $html ) {
 		$body_parts[] = 'tag_handling=html';
 	}
